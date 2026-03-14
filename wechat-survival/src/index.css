@@ -1,0 +1,211 @@
+/* ========================================
+   微信生存游戏 - 样式统一入口
+   ======================================== */
+
+@import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/interactions.css";
+@import "./styles/animations.css";
+
+/* ========================================
+   Tailwind 主题配置 - 映射 CSS 变量到 Tailwind 工具类
+   ======================================== */
+
+@theme {
+  /* 颜色系统 */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-info: var(--color-info);
+  
+  /* 中性色阶梯 */
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  
+  /* 聊天气泡色 */
+  --color-bubble-user-bg: var(--bubble-user-bg);
+  --color-bubble-other-bg: var(--bubble-other-bg);
+  --color-bubble-border: var(--bubble-border);
+  
+  /* 间距系统 */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --spacing-10: var(--space-10);
+  --spacing-12: var(--space-12);
+  --spacing-16: var(--space-16);
+  
+  /* 圆角系统 */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+  
+  /* 阴影系统 */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  
+  /* 字体大小 */
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+  
+  /* 动画时长 */
+  --duration-instant: var(--duration-instant);
+  --duration-fast: var(--duration-fast);
+  --duration-normal: var(--duration-normal);
+  --duration-slow: var(--duration-slow);
+}
+
+/* ========================================
+   全局基础样式
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: antialiased;
+  color: var(--neutral-700);
+  background-color: var(--neutral-50);
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* ========================================
+   滚动条样式 - 微信风格
+   ======================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neutral-400);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neutral-500);
+}
+
+/* ========================================
+   文本截断工具类
+   ======================================== */
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ========================================
+   聊天气泡样式 - 使用设计令牌
+   ======================================== */
+
+.chat-bubble-user {
+  background-color: var(--bubble-user-bg);
+  border-radius: var(--radius-md);
+  border-top-right-radius: 0;
+}
+
+.chat-bubble-other {
+  background-color: var(--bubble-other-bg);
+  border-radius: var(--radius-md);
+  border-top-left-radius: 0;
+  border: 1px solid var(--bubble-border);
+}
+
+/* ========================================
+   响应式设计
+   ======================================== */
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+  
+  .chat-list {
+    width: 100%;
+  }
+}
+
+/* ========================================
+   防止文本选择
+   ======================================== */
+
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* ========================================
+   输入框聚焦无边框
+   ======================================== */
+
+textarea:focus, input:focus {
+  outline: none;
+}
+
+/* ========================================
+   按钮点击效果
+   ======================================== */
+
+button:active {
+  opacity: 0.8;
+}

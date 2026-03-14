@@ -1,0 +1,177 @@
+/* ========================================
+   通用动效
+   只保留 3 个极简动画，禁止自定义动画
+   ======================================== */
+
+/* ========================================
+   1. Hover 抬升效果
+   ======================================== */
+@keyframes hover-lift {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-hover-lift {
+  transition: transform var(--duration-normal) var(--ease-in-out);
+}
+
+.animate-hover-lift:hover {
+  animation: hover-lift 0.3s var(--ease-in-out);
+}
+
+/* ========================================
+   2. 淡入淡出
+   ======================================== */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in var(--duration-normal) var(--ease-in-out);
+}
+
+.animate-fade-out {
+  animation: fade-out var(--duration-normal) var(--ease-in-out);
+}
+
+/* ========================================
+   3. 滑入效果
+   ======================================== */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right var(--duration-slow) var(--ease-out);
+}
+
+@keyframes slide-in-bottom {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-bottom {
+  animation: slide-in-bottom var(--duration-slow) var(--ease-out);
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left var(--duration-slow) var(--ease-out);
+}
+
+/* ========================================
+   4. 缩放效果
+   ======================================== */
+@keyframes scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in var(--duration-normal) var(--ease-out);
+}
+
+/* ========================================
+   5. 加载旋转
+   ======================================== */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ========================================
+   6. 脉冲效果
+   ======================================== */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ========================================
+   动画时长工具类
+   ======================================== */
+.duration-instant {
+  animation-duration: 0ms;
+  transition-duration: 0ms;
+}
+
+.duration-fast {
+  animation-duration: var(--duration-fast);
+  transition-duration: var(--duration-fast);
+}
+
+.duration-normal {
+  animation-duration: var(--duration-normal);
+  transition-duration: var(--duration-normal);
+}
+
+.duration-slow {
+  animation-duration: var(--duration-slow);
+  transition-duration: var(--duration-slow);
+}

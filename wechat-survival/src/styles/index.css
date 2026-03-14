@@ -1,0 +1,139 @@
+/* ========================================
+   微信生存游戏 - 样式统一入口
+   ======================================== */
+
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./interactions.css";
+@import "./animations.css";
+
+/* ========================================
+   全局基础样式
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: antialiased;
+  color: var(--neutral-700);
+  background-color: var(--neutral-50);
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* ========================================
+   滚动条样式 - 微信风格
+   ======================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   文本截断工具类
+   ======================================== */
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ========================================
+   聊天气泡样式 - 使用设计令牌
+   ======================================== */
+
+.chat-bubble-user {
+  background-color: var(--bubble-user-bg);
+  border-radius: var(--radius-md);
+  border-top-right-radius: 0;
+}
+
+.chat-bubble-other {
+  background-color: var(--bubble-other-bg);
+  border-radius: var(--radius-md);
+  border-top-left-radius: 0;
+  border: 1px solid var(--bubble-border);
+}
+
+/* ========================================
+   响应式设计
+   ======================================== */
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+  
+  .chat-list {
+    width: 100%;
+  }
+}
+
+/* ========================================
+   防止文本选择
+   ======================================== */
+
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* ========================================
+   输入框聚焦无边框
+   ======================================== */
+
+textarea:focus, input:focus {
+  outline: none;
+}
+
+/* ========================================
+   按钮点击效果
+   ======================================== */
+
+button:active {
+  opacity: 0.8;
+}
