@@ -37,7 +37,10 @@
 - Removed the detail-page sticky-card feel by making the side panels scroll naturally instead of pinning multiple cards.
 - Added explicit typography and interaction hierarchy guidance to the Atlas UI/UE system guide.
 - Reviewed the latest `Customers`, `Accounts`, and `Pipeline` concepts against current web interface guidelines and the local frontend art-direction skill.
-- No code changes were made in this review step; the next implementation round should prioritize semantic controls, focus states, mobile table readability, reduced-motion handling, and calmer surface treatment.
+- Implemented the Atlas-only five-screen refinement across `Customers`, `Accounts`, and `Pipeline`.
+- Updated Atlas render tests to lock the new page hierarchy, delete copy, and note-expansion copy.
+- Opened up the page titles so the current object or task is the primary heading instead of the concept name.
+- Reduced Atlas glass-card feel, removed the fake DELETE confirmation row, and unified delete actions around simpler destructive copy.
 
 ## Files Updated This Round
 
@@ -45,10 +48,15 @@
 - `src/concepts/CustomerConceptLab.tsx`
 - `src/concepts/AccountConceptLab.tsx`
 - `src/concepts/PipelineConceptLab.tsx`
+- `tests/customerConceptLabRender.ts`
+- `tests/accountConceptLabRender.ts`
+- `tests/pipelineConceptLabRender.ts`
 - `docs/superpowers/specs/2026-03-31-crm-customer-concepts-design.md`
 - `docs/superpowers/specs/2026-03-31-atlas-accounts-concepts-design.md`
 - `docs/superpowers/specs/2026-03-31-atlas-pipeline-concepts-design.md`
 - `docs/superpowers/specs/2026-03-31-atlas-crm-ui-ue-system-guide.md`
+- `docs/superpowers/specs/2026-03-31-atlas-five-screen-refinement-design.md`
+- `docs/superpowers/plans/2026-03-31-atlas-five-screen-refinement.md`
 
 ## Key Design Decisions
 
@@ -61,6 +69,9 @@
   - right rail for supporting context and workflow signals
 - Long values clamp first and expand on demand.
 - Custom fields must support pinned groups plus collapsed overflow groups.
+- Atlas page titles should always describe the current object or task first.
+- Atlas delete dialogs should use one shared destructive pattern and avoid fake confirmation inputs.
+- Atlas action density should stay lower than the previous concept round, with one clear primary action in each local area.
 
 ## Verification Completed
 
@@ -68,6 +79,7 @@
 - `npm run build`
 - contract tests for customer, account, pipeline
 - render tests for customer, account, pipeline
+- Atlas render tests for customer, account, pipeline passed after the refinement update
 
 ## Notes
 
