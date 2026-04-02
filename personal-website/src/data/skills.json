@@ -1,0 +1,193 @@
+{
+  "categories": [
+    {
+      "name": "AI Agent 架构",
+      "level": 90,
+      "skills": ["Multi-Agent 协作", "ReAct 模式", "Tool Use", "Memory Systems", "Agent 工作流设计"],
+      "color": "#8b5cf6",
+      "description": "搭建多 Agent 协作系统（coder/pm/qa/architect/frontend），开发效率提升 300%。熟悉 ReAct、Plan-and-Execute 等设计模式"
+    },
+    {
+      "name": "语音智能体",
+      "level": 88,
+      "skills": ["LLM 集成", "TTS 配置", "ASR 集成", "语音流程设计", "实时通话处理"],
+      "color": "#06b6d4",
+      "description": "主导 AI Voice Agent 0→1 产品设计，支持 LLM+TTS+ASR 全链路配置。熟悉 MiniMax/ElevenLabs TTS、Whisper/豆包 ASR"
+    },
+    {
+      "name": "RAG 知识库",
+      "level": 85,
+      "skills": ["向量数据库", "Embedding", "Chunking", "多模态文档解析", "知识图谱"],
+      "color": "#10b981",
+      "description": "搭建 RAG 知识库 SaaS 平台，支持 PDF/PPT/Excel/Word 多模态文档解析与智能问答。熟悉 pgvector/Milvus/Weaviate"
+    },
+    {
+      "name": "产品设计",
+      "level": 95,
+      "skills": ["PRD 撰写", "原型设计", "用户研究", "复杂业务拆解", "需求分析", "竞品分析"],
+      "color": "#6366f1",
+      "description": "7 年 B 端产品经验，熟练运用 Figma、Axure 输出高质量原型，擅长复杂业务拆解、精准需求分析及高效优先级排期"
+    },
+    {
+      "name": "AI 工具链",
+      "level": 92,
+      "skills": ["OpenClaw", "Claude Code", "Trae", "Cursor", "AI 编程工作流", "Skills 开发"],
+      "color": "#f59e0b",
+      "description": "精通 OpenClaw/Claude Code，熟练 Trae/Cursor/Windsurf。独立开发 10+ AI 应用，创建 33 个 Skills 文件"
+    },
+    {
+      "name": "企业级 CRM",
+      "level": 90,
+      "skills": ["CRM 产品设计", "UI 升级规划", "Design Tokens", "i18n 国际化", "a11y 无障碍"],
+      "color": "#ef4444",
+      "description": "主导 CRM 系统 100+ 页面 UI 升级，采用 Design Tokens + i18n + a11y 高标准架构"
+    },
+    {
+      "name": "业务分析",
+      "level": 95,
+      "skills": ["金融领域", "政府项目", "制造业", "数据建模", "业务流程设计"],
+      "color": "#06b6d4",
+      "description": "深耕金融、政府、制造领域，服务中信银行、民生银行、外交部等十余家大型机构"
+    },
+    {
+      "name": "项目管理",
+      "level": 90,
+      "skills": ["团队管理", "进度管理", "跨团队协作", "风险控制", "敏捷开发"],
+      "color": "#10b981",
+      "description": "领导 8 人需求组完成外交部 OA 项目，主导中信银行数据建模项目落地，0-1 完整产品生命周期管理经验"
+    },
+    {
+      "name": "客户对接",
+      "level": 95,
+      "skills": ["需求调研", "方案汇报", "项目交付", "客户培训", "关系维护"],
+      "color": "#f59e0b",
+      "description": "服务民生银行、广开证券、平安银行、建设银行、海通证券、华为、泰康养老、碧桂园等十余家客户"
+    },
+    {
+      "name": "工具使用",
+      "level": 90,
+      "skills": ["Figma", "Axure", "数据建模工具", "Office", "项目管理工具"],
+      "color": "#ef4444",
+      "description": "熟练运用 Figma、Axure 输出高质量原型，精通数据建模工具，高效使用各类项目管理工具"
+    }
+  ],
+  "tools": [
+    {
+      "name": "OpenClaw",
+      "proficiency": 5,
+      "category": "AI 编程",
+      "duration": "6 个月",
+      "description": "精通 OpenClaw，创建 Skills 系统，开发多个 AI 应用"
+    },
+    {
+      "name": "Claude Code",
+      "proficiency": 5,
+      "category": "AI 编程",
+      "duration": "4 个月",
+      "description": "精通 Claude Code，擅长长文档理解和复杂推理"
+    },
+    {
+      "name": "Trae",
+      "proficiency": 4,
+      "category": "AI 编程",
+      "duration": "3 个月",
+      "description": "熟练 Trae，适合国产场景和中文项目"
+    },
+    {
+      "name": "Cursor",
+      "proficiency": 4,
+      "category": "AI 编程",
+      "duration": "6 个月",
+      "description": "熟练 Cursor，日常开发工具"
+    },
+    {
+      "name": "Figma",
+      "proficiency": 5,
+      "category": "设计工具",
+      "description": "熟练运用 Figma 输出高质量原型"
+    },
+    {
+      "name": "Axure",
+      "proficiency": 5,
+      "category": "设计工具",
+      "description": "精通 Axure 交互原型设计"
+    },
+    {
+      "name": "DDM 数据建模工具",
+      "proficiency": 5,
+      "category": "专业工具",
+      "description": "核心产品，深度理解数据建模领域"
+    },
+    {
+      "name": "AI 大模型",
+      "proficiency": 5,
+      "category": "AI 技术",
+      "description": "成功将 AI 大模型融入产品，打造五大 AI 功能"
+    },
+    {
+      "name": "Office 套件",
+      "proficiency": 5,
+      "category": "办公工具",
+      "description": "高效使用 Word、Excel、PPT 等办公软件"
+    },
+    {
+      "name": "项目管理工具",
+      "proficiency": 4,
+      "category": "协作工具",
+      "description": "熟练使用 Jira、Confluence 等项目管理工具"
+    },
+    {
+      "name": "Gemini",
+      "proficiency": 5,
+      "category": "LLM",
+      "description": "精通 Gemini，AI Voice Agent 核心"
+    },
+    {
+      "name": "Claude",
+      "proficiency": 5,
+      "category": "LLM",
+      "description": "精通 Claude，擅长文档撰写和需求分析"
+    },
+    {
+      "name": "GLM",
+      "proficiency": 4,
+      "category": "LLM",
+      "description": "熟练 GLM，国产场景应用"
+    },
+    {
+      "name": "MiniMax",
+      "proficiency": 4,
+      "category": "LLM/TTS",
+      "description": "熟练 MiniMax TTS 和多模态能力"
+    },
+    {
+      "name": "Supabase",
+      "proficiency": 4,
+      "category": "后端服务",
+      "description": "熟练 Supabase，数据库、认证、向量存储"
+    }
+  ],
+  "languages": [
+    { "name": "产品规划", "level": "精通" },
+    { "name": "需求分析", "level": "精通" },
+    { "name": "原型设计", "level": "精通" },
+    { "name": "AI Agent 设计", "level": "精通" },
+    { "name": "RAG 系统设计", "level": "熟练" },
+    { "name": "项目管理", "level": "熟练" },
+    { "name": "AI 编程", "level": "精通" }
+  ],
+  "certifications": [],
+  "hobbySkills": [
+    { "name": "小红书运营", "icon": "📕" },
+    { "name": "调酒", "icon": "🍸" },
+    { "name": "简历指导", "icon": "📝" },
+    { "name": "二次元谷子", "icon": "🎌" }
+  ],
+  "education": {
+    "school": "哈尔滨工业大学（985）",
+    "major": "信息与计算科学",
+    "degree": "本科",
+    "period": "2014.09 - 2018.06",
+    "description": "985 院校毕业，系统学习数学、计算机基础"
+  }
+}

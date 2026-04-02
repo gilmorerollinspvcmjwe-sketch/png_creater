@@ -1,0 +1,565 @@
+{
+  "categories": [
+    {
+      "id": "work",
+      "name": "主业产品",
+      "description": "正式工作相关的产品项目",
+      "projects": [
+        {
+          "id": "ai-voice-bot",
+          "name": "智呼语音机器人",
+          "description": "大模型语音智能体配置平台，LLM+TTS+ASR 全链路集成",
+          "tech": ["React 19", "TypeScript", "Vite", "Google GenAI", "Recharts"],
+          "status": "进行中",
+          "highlights": ["可视化流程编排", "多模型对比测试", "RAG 知识库集成", "实时监控"],
+          "link": "http://localhost:5173",
+          "github": "workspace/AI-voice-bot"
+        },
+        {
+          "id": "crm-frontend",
+          "name": "CRM 客户管理系统",
+          "description": "企业级 CRM 前端系统，支持客户管理、销售跟进等功能",
+          "tech": ["React 18", "TypeScript", "Ant Design", "Vite"],
+          "status": "维护中",
+          "highlights": ["100+ 页面 UI 升级", "Design Tokens 系统", "i18n 国际化", "a11y 无障碍"],
+          "link": "",
+          "github": "workspace/crm-frontend"
+        },
+        {
+          "id": "hr-resume-screener",
+          "name": "HR 简历筛选系统",
+          "description": "AI 驱动的简历自动筛选和评分系统，帮 HR 节省 60% 初筛时间",
+          "tech": ["React 18", "FastAPI", "Python", "Gemini API", "OCR"],
+          "status": "已完成",
+          "highlights": ["JD 关键词自动提取", "批量简历解析", "AI 智能评分", "冲突报告生成"],
+          "link": "",
+          "github": "workspace/hr-resume-screener"
+        },
+        {
+          "id": "rag-saas-mvp",
+          "name": "多模态 RAG SaaS 平台",
+          "description": "企业级多模态检索增强生成平台，支持文档、图片、PPT、Excel 智能问答",
+          "tech": ["React", "FastAPI", "LlamaIndex", "Supabase", "pgvector"],
+          "status": "已完成",
+          "highlights": ["多格式文档支持", "智能切片", "多租户管理", "来源追溯"],
+          "link": "",
+          "github": "workspace/rag-saas-mvp"
+        },
+        {
+          "id": "voice-vault",
+          "name": "VoiceVault 通话分析",
+          "description": "通话录音批量分析平台，支持 ASR 转写和 AI 智能分析",
+          "tech": ["React", "FastAPI", "SQLite", "Gemini API", "ASR"],
+          "status": "已完成",
+          "highlights": ["Excel 批量导入", "ASR 自动转写", "AI 智能分析", "多条件筛选导出"],
+          "link": "",
+          "github": "workspace/voice-vault"
+        },
+        {
+          "id": "self-research-crm-demo",
+          "name": "Self Research CRM Demo",
+          "description": "CRM 系统演示版本，展示自主研究能力",
+          "tech": ["React 19", "TypeScript", "Ant Design 6", "Tailwind CSS", "i18next"],
+          "status": "进行中",
+          "highlights": ["自主研究能力", "现代化 UI", "国际化支持"],
+          "link": "http://localhost:5173",
+          "github": "workspace/self-research-crm-demo"
+        },
+        {
+          "id": "suitecrm-custom",
+          "name": "SuiteCRM 定制前端",
+          "description": "SuiteCRM 系统的定制化前端界面",
+          "tech": ["PHP", "JavaScript", "SuiteCRM"],
+          "status": "维护中",
+          "highlights": ["企业级 CRM", "定制化界面", "工作流集成"],
+          "link": "",
+          "github": "workspace/suitecrm-custom-frontend"
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "name": "提效工具",
+      "description": "提升效率的工具、脚本、技能",
+      "projects": [
+        {
+          "id": "pm-superpowers",
+          "name": "PM Superpowers",
+          "description": "12 个专业产品经理 AI 技能包，覆盖战略分析到落地执行全流程",
+          "tech": ["OpenClaw Skills", "TypeScript", "AI Agent"],
+          "status": "已完成",
+          "highlights": ["12 个专业子技能", "VRIO 分析", "护城河分析", "预演分析", "干系人对齐"],
+          "link": "",
+          "github": "workspace/pm-superpowers-repo"
+        },
+        {
+          "id": "opencli-core",
+          "name": "OpenCLI",
+          "description": "AI 驱动的命令行工具，让任何网站变成 CLI",
+          "tech": ["TypeScript", "Node.js", "Puppeteer"],
+          "status": "进行中",
+          "highlights": ["16+ 平台支持", "复用 Chrome 登录态", "无需 API Key", "自然语言操控"],
+          "link": "https://github.com/jackwener/opencli",
+          "github": "workspace/opencli-core"
+        },
+        {
+          "id": "opencli-skill",
+          "name": "OpenCLI Skill",
+          "description": "OpenCLI 的 OpenClaw 技能封装，支持 B 站、知乎、Twitter 等平台操控",
+          "tech": ["OpenClaw Skills", "opencli"],
+          "status": "已完成",
+          "highlights": ["16 平台支持", "Chrome 登录态复用", "自然语言指令"],
+          "link": "",
+          "github": "workspace/opencli-skill"
+        },
+        {
+          "id": "dashboard",
+          "name": "Agent 监控仪表板",
+          "description": "监控 Agent/Token/定时任务/模型/Skill 的工作状态",
+          "tech": ["Node.js", "Express", "JavaScript"],
+          "status": "已完成",
+          "highlights": ["实时监控", "多维度统计", "可视化展示"],
+          "link": "http://localhost:3000",
+          "github": "workspace/dashboard"
+        },
+        {
+          "id": "openclaw-dashboard",
+          "name": "OpenClaw Dashboard",
+          "description": "OpenClaw 系统监控仪表板",
+          "tech": ["React 18", "TypeScript", "Vite", "Recharts", "Lucide"],
+          "status": "进行中",
+          "highlights": ["系统监控", "数据可视化", "实时状态"],
+          "link": "http://localhost:5173",
+          "github": "workspace/openclaw-dashboard"
+        },
+        {
+          "id": "data-cleaner",
+          "name": "数据清洗工具",
+          "description": "多格式文档数据清洗工具，支持 PDF/Word/HTML/TXT",
+          "tech": ["Python", "TF-IDF", "编辑距离算法"],
+          "status": "已完成",
+          "highlights": ["智能去重", "冲突识别", "噪声清理", "格式标准化"],
+          "link": "",
+          "github": "workspace/data-cleaner"
+        },
+        {
+          "id": "data-cleaner-gui",
+          "name": "数据清洗工具 GUI",
+          "description": "数据清洗工具 Windows 桌面版，集成 PaddleOCR 和大模型混合识别",
+          "tech": ["Python", "PaddleOCR", "PyQt", "大模型 API"],
+          "status": "已完成",
+          "highlights": ["批量导入", "混合识别方案", "实时进度", "日志查看"],
+          "link": "",
+          "github": "workspace/data-cleaner-gui"
+        },
+        {
+          "id": "supabase-tool",
+          "name": "Supabase 管理工具",
+          "description": "Supabase 本地管理 CLI，支持数据备份、对比、更新、版本管理",
+          "tech": ["TypeScript", "Node.js", "Supabase JS SDK"],
+          "status": "已完成",
+          "highlights": ["数据备份", "Schema 对比", "版本管理", "迁移工具"],
+          "link": "",
+          "github": "workspace/supabase-tool"
+        },
+        {
+          "id": "compare-tool",
+          "name": "ExcelFarm 对比工具",
+          "description": "对比本地 TypeScript 定义与云端 Supabase 备份",
+          "tech": ["TypeScript", "ts-node", "Supabase"],
+          "status": "已完成",
+          "highlights": ["全表对比", "差异检测", "自动同步"],
+          "link": "",
+          "github": "workspace/compare-tool"
+        },
+        {
+          "id": "llm-price-compare",
+          "name": "LLM 价格对比",
+          "description": "实时追踪全球大模型 API 调用价格的对比平台，35+ 模型，16+ 厂商",
+          "tech": ["React", "TypeScript", "Vite"],
+          "status": "已完成",
+          "highlights": ["35+ 模型支持", "16+ 厂商", "实时更新", "性价比分析"],
+          "link": "",
+          "github": "workspace/llm-price-compare"
+        },
+        {
+          "id": "skill-creator",
+          "name": "Skill Creator",
+          "description": "OpenClaw 技能创建和管理工具",
+          "tech": ["OpenClaw Skills", "TypeScript"],
+          "status": "已完成",
+          "highlights": ["技能模板", "自动验证", "一键发布"],
+          "link": "",
+          "github": "workspace/skill-creator"
+        }
+      ]
+    },
+    {
+      "id": "games",
+      "name": "游戏项目",
+      "description": "游戏相关项目（Excel Farm、游戏技能等）",
+      "projects": [
+        {
+          "id": "excel-farm",
+          "name": "Excel Farm",
+          "description": "伪装成 Excel 的农场 RPG 游戏，包含种植、畜牧、员工管理、地下城探索",
+          "tech": ["React 19", "TypeScript", "Framer Motion", "Vite", "Supabase"],
+          "status": "已完成",
+          "highlights": ["极致 Excel 伪装", "4 大游戏系统", "流畅动画", "随时切换工作模式"],
+          "link": "http://localhost:5173",
+          "github": "workspace/excel-farm"
+        },
+        {
+          "id": "excel-aim-trainer",
+          "name": "Excel Aim Trainer",
+          "description": "伪装成 Excel 的练枪游戏，支持多种训练模式和数据追踪",
+          "tech": ["React 19", "TypeScript", "Canvas", "Tailwind CSS"],
+          "status": "已完成",
+          "highlights": ["Excel 完美伪装", "多种训练模式", "数据追踪", "摸鱼神器"],
+          "link": "http://localhost:5173",
+          "github": "workspace/excel-aim-trainer"
+        },
+        {
+          "id": "bole-game",
+          "name": "伯乐 - 千里马寻踪",
+          "description": "极简国风逻辑解谜微信小游戏，融合中国传统伯乐相马文化",
+          "tech": ["HTML", "CSS", "JavaScript", "Canvas"],
+          "status": "已完成",
+          "highlights": ["国风美术", "逻辑解谜", "关卡生成算法", "微信小游戏"],
+          "link": "",
+          "github": "workspace/bole-game"
+        },
+        {
+          "id": "z-survival",
+          "name": "Z-Survival 零日",
+          "description": "AI 原生开放世界生存游戏，使用 AI 生成剧情、对话、任务、地图",
+          "tech": ["React", "TypeScript", "Gemini API", "Canvas", "Vitest", "Playwright"],
+          "status": "进行中",
+          "highlights": ["AI 生成剧情", "开放世界", "动态任务", "完整测试套件"],
+          "link": "http://localhost:5173",
+          "github": "workspace/z-survival"
+        },
+        {
+          "id": "wechat-survival",
+          "name": "微信生存游戏",
+          "description": "微信风格的生存小游戏",
+          "tech": ["React 19", "TypeScript", "Vite", "Motion", "Gemini API"],
+          "status": "进行中",
+          "highlights": ["微信 UI 风格", "生存玩法", "AI 集成"],
+          "link": "http://localhost:3000",
+          "github": "workspace/wechat-survival"
+        },
+        {
+          "id": "infinite-combo-tower",
+          "name": "无限连击塔",
+          "description": "连击塔防游戏",
+          "tech": ["JavaScript", "Canvas"],
+          "status": "实验性",
+          "highlights": ["连击系统", "塔防玩法"],
+          "link": "",
+          "github": "workspace/infinite-combo-tower"
+        },
+        {
+          "id": "scrapyard",
+          "name": "SCRAPYARD 技能",
+          "description": "AI Agent 对战竞技场技能，参与 Floor is Lava 游戏",
+          "tech": ["OpenClaw Skills", "SCRAPYARD API"],
+          "status": "已完成",
+          "highlights": ["AI 对战", "$5 奖金", "15 分钟一局"],
+          "link": "https://scrapyard.fun",
+          "github": "workspace/skills/scrapyard"
+        },
+        {
+          "id": "game-cog",
+          "name": "Game Cog",
+          "description": "游戏世界构建技能，DeepResearch Bench #1，角色一致的美术/音乐/UI/3D 模型/GDD",
+          "tech": ["OpenClaw Skills", "CellCog"],
+          "status": "已完成",
+          "highlights": ["DeepResearch #1", "角色一致性", "全资产生成", "GDD 生成"],
+          "link": "",
+          "github": "workspace/skills/game-cog"
+        },
+        {
+          "id": "game-studio",
+          "name": "Game Studio",
+          "description": "游戏开发工作室技能，10 个专业角色覆盖游戏设计全流程",
+          "tech": ["OpenClaw Skills", "多角色 Agent"],
+          "status": "已完成",
+          "highlights": ["10 个专业角色", "数值平衡", "叙事设计", "关卡节奏", "经济系统"],
+          "link": "",
+          "github": "workspace/skills/game-studio"
+        },
+        {
+          "id": "wangjing-game-team",
+          "name": "王鲸 AI 游戏团队",
+          "description": "28 个专业角色覆盖游戏开发全流程（立项/开发/运营）",
+          "tech": ["OpenClaw Skills", "多角色 Agent"],
+          "status": "已完成",
+          "highlights": ["28 个专业角色", "全流程覆盖", "立项 - 开发 - 运营"],
+          "link": "",
+          "github": "workspace/skills/wangjing-game-team"
+        }
+      ]
+    },
+    {
+      "id": "learning",
+      "name": "学习项目",
+      "description": "学习实验性质的项目",
+      "projects": [
+        {
+          "id": "agent-reach",
+          "name": "Agent Reach",
+          "description": "给 AI Agent 一键装上互联网能力，支持 B 站、知乎、Twitter、YouTube 等平台",
+          "tech": ["Python", "Selenium", "Playwright"],
+          "status": "已完成",
+          "highlights": ["16+ 平台支持", "突破 IP 限制", "无需登录", "内容提取"],
+          "link": "",
+          "github": "workspace/agent-reach"
+        },
+        {
+          "id": "claude-code-research",
+          "name": "Claude Code 研究",
+          "description": "Claude Code 源码快照，用于安全研究和架构分析",
+          "tech": ["TypeScript", "Node.js", "安全研究"],
+          "status": "已完成",
+          "highlights": ["源码分析", "安全研究", "架构学习"],
+          "link": "",
+          "github": "workspace/claude-code-research"
+        },
+        {
+          "id": "agentscope",
+          "name": "AgentScope",
+          "description": "多 Agent 协作框架学习和研究",
+          "tech": ["Python", "多 Agent 系统"],
+          "status": "学习中",
+          "highlights": ["多 Agent 协作", "框架研究"],
+          "link": "",
+          "github": "workspace/agentscope"
+        },
+        {
+          "id": "openmaic-analysis",
+          "name": "OpenMAIC 分析",
+          "description": "OpenMAIC 项目分析和研究",
+          "tech": ["Next.js", "React", "AI SDK", "LangGraph"],
+          "status": "学习中",
+          "highlights": ["AI 集成", "多模型支持", "CopilotKit"],
+          "link": "",
+          "github": "workspace/OpenMAIC-analysis"
+        },
+        {
+          "id": "virtual-engineering-team",
+          "name": "虚拟工程团队",
+          "description": "基于 OpenClaw 的 AI 驱动虚拟工程团队系统，14 个核心角色",
+          "tech": ["OpenClaw Skills", "多角色 Agent"],
+          "status": "进行中",
+          "highlights": ["14 个核心角色", "产品全生命周期", "Think-Plan-Build-Review-Test-Ship-Reflect"],
+          "link": "",
+          "github": "workspace/virtual-engineering-team"
+        },
+        {
+          "id": "ai-journal",
+          "name": "AI Journal",
+          "description": "AI 手账应用，结合 AI 能力帮助用户记录生活、生成洞察",
+          "tech": ["React", "TypeScript", "sql.js"],
+          "status": "实验性",
+          "highlights": ["AI 辅助记录", "智能洞察", "自动整理"],
+          "link": "",
+          "github": "workspace/ai-journal"
+        }
+      ]
+    },
+    {
+      "id": "skills",
+      "name": "OpenClaw 技能库",
+      "description": "为 OpenClaw 开发的专业技能库",
+      "projects": [
+        {
+          "id": "code-review",
+          "name": "Code Review",
+          "description": "系统化代码审查模式，覆盖安全、性能、可维护性、正确性和测试",
+          "tech": ["OpenClaw Skills"],
+          "status": "已完成",
+          "highlights": ["5 个审查维度", "严重程度分级", "结构化反馈"],
+          "link": "",
+          "github": "workspace/skills/code-review"
+        },
+        {
+          "id": "deploy-to-vercel",
+          "name": "Deploy to Vercel",
+          "description": "一键部署应用到 Vercel，支持预览部署和生产部署",
+          "tech": ["OpenClaw Skills", "Vercel CLI"],
+          "status": "已完成",
+          "highlights": ["一键部署", "预览模式", "Git 集成"],
+          "link": "",
+          "github": "workspace/skills/deploy-to-vercel"
+        },
+        {
+          "id": "e2e-testing-patterns",
+          "name": "E2E Testing Patterns",
+          "description": "使用 Playwright 和 Cypress 构建可靠的 E2E 测试套件",
+          "tech": ["OpenClaw Skills", "Playwright", "Cypress"],
+          "status": "已完成",
+          "highlights": ["关键用户旅程", "消除不稳定测试", "CI/CD 集成"],
+          "link": "",
+          "github": "workspace/skills/e2e-testing-patterns"
+        },
+        {
+          "id": "memory-saver",
+          "name": "Memory Saver",
+          "description": "记忆存储技能，支持增量更新和每日自动汇总",
+          "tech": ["OpenClaw Skills"],
+          "status": "已完成",
+          "highlights": ["增量更新", "每日汇总", "daily notes"],
+          "link": "",
+          "github": "workspace/skills/memory-saver"
+        },
+        {
+          "id": "minimax-docx",
+          "name": "MiniMax DOCX",
+          "description": "专业的 DOCX 文档创建、编辑和格式化技能",
+          "tech": ["OpenClaw Skills", "OpenXML SDK"],
+          "status": "已完成",
+          "highlights": ["3 种处理管道", "XSD 验证", "专业格式"],
+          "link": "",
+          "github": "workspace/skills/minimax-docx"
+        },
+        {
+          "id": "minimax-pdf",
+          "name": "MiniMax PDF",
+          "description": "高质量 PDF 生成技能，使用 Token 化设计系统",
+          "tech": ["OpenClaw Skills", "PDF 生成"],
+          "status": "已完成",
+          "highlights": ["Token 化设计", "打印就绪", "视觉质量"],
+          "link": "",
+          "github": "workspace/skills/minimax-pdf"
+        },
+        {
+          "id": "minimax-xlsx",
+          "name": "MiniMax XLSX",
+          "description": "Excel 电子表格处理技能，支持创建、编辑、分析、验证",
+          "tech": ["OpenClaw Skills", "OpenXML SDK"],
+          "status": "已完成",
+          "highlights": ["零格式丢失", "公式重算", "专业财务格式"],
+          "link": "",
+          "github": "workspace/skills/minimax-xlsx"
+        },
+        {
+          "id": "news-digest",
+          "name": "News Digest",
+          "description": "新闻摘要聚合器，自动抓取多新闻源生成每日/每周简报",
+          "tech": ["OpenClaw Skills", "Web Scraping", "AI 摘要"],
+          "status": "已完成",
+          "highlights": ["多源抓取", "AI 摘要", "定时推送"],
+          "link": "",
+          "github": "workspace/skills/news-digest"
+        },
+        {
+          "id": "pptx-generator",
+          "name": "PPTX Generator",
+          "description": "PowerPoint 演示文稿生成和编辑技能",
+          "tech": ["OpenClaw Skills", "PptxGenJS"],
+          "status": "已完成",
+          "highlights": ["完整幻灯片类型", "XML 编辑", "文本提取"],
+          "link": "",
+          "github": "workspace/skills/pptx-generator"
+        },
+        {
+          "id": "promptify",
+          "name": "Promptify",
+          "description": "提示词优化技能，提升提示词的清晰度和有效性",
+          "tech": ["OpenClaw Skills"],
+          "status": "已完成",
+          "highlights": ["智能优化", "子代理路由", "多模式支持"],
+          "link": "",
+          "github": "workspace/skills/promptify"
+        },
+        {
+          "id": "sw-frontend",
+          "name": "Frontend Expert",
+          "description": "前端开发专家技能，覆盖 React、Vue、Angular 和现代 JavaScript/TypeScript",
+          "tech": ["OpenClaw Skills", "React", "Vue", "Angular"],
+          "status": "已完成",
+          "highlights": ["React 18+", "自定义 Hooks", "无障碍最佳实践"],
+          "link": "",
+          "github": "workspace/skills/sw-frontend"
+        },
+        {
+          "id": "test-master",
+          "name": "Test Master",
+          "description": "测试策略和自动化框架技能",
+          "tech": ["OpenClaw Skills"],
+          "status": "已完成",
+          "highlights": ["单元测试", "集成测试", "E2E", "覆盖率分析"],
+          "link": "",
+          "github": "workspace/skills/test-master"
+        },
+        {
+          "id": "travel",
+          "name": "Travel",
+          "description": "个人旅行系统，管理梦想目的地、旅行计划和回忆",
+          "tech": ["OpenClaw Skills"],
+          "status": "已完成",
+          "highlights": ["愿望清单", "旅行计划", "回忆记录"],
+          "link": "",
+          "github": "workspace/skills/travel"
+        },
+        {
+          "id": "vercel-composition-patterns",
+          "name": "React Composition Patterns",
+          "description": "可扩展的 React 组合模式，来自 Vercel",
+          "tech": ["OpenClaw Skills", "React 19"],
+          "status": "已完成",
+          "highlights": ["复合组件", "Render Props", "Context Providers", "React 19 API"],
+          "link": "",
+          "github": "workspace/skills/vercel-composition-patterns"
+        },
+        {
+          "id": "vercel-react-best-practices",
+          "name": "Vercel React Best Practices",
+          "description": "Vercel 工程团队的 React 和 Next.js 性能优化指南，67 条规则",
+          "tech": ["OpenClaw Skills", "React", "Next.js"],
+          "status": "已完成",
+          "highlights": ["67 条规则", "8 个类别", "性能优化"],
+          "link": "",
+          "github": "workspace/skills/vercel-react-best-practices"
+        },
+        {
+          "id": "vercel-react-native-skills",
+          "name": "React Native Skills",
+          "description": "React Native 和 Expo 最佳实践",
+          "tech": ["OpenClaw Skills", "React Native", "Expo"],
+          "status": "已完成",
+          "highlights": ["列表性能", "动画实现", "原生模块"],
+          "link": "",
+          "github": "workspace/skills/vercel-react-native-skills"
+        },
+        {
+          "id": "web-design-guidelines",
+          "name": "Web Design Guidelines",
+          "description": "Web 界面指南合规性审查技能",
+          "tech": ["OpenClaw Skills", "Vercel WIG"],
+          "status": "已完成",
+          "highlights": ["UI 审查", "无障碍检查", "设计审计"],
+          "link": "",
+          "github": "workspace/skills/web-design-guidelines"
+        },
+        {
+          "id": "product-manager",
+          "name": "Product Manager",
+          "description": "产品经理技能，覆盖发现、优先级排序、路线图和跨职能领导",
+          "tech": ["OpenClaw Skills"],
+          "status": "已完成",
+          "highlights": ["用户发现", "优先级排序", "路线图"],
+          "link": "",
+          "github": "workspace/skills/product-manager"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "generatedAt": "2026-04-01T21:30:00+08:00",
+    "totalProjects": 52,
+    "categories": 5,
+    "workspace": "C:\\Users\\13609\\.openclaw\\workspace"
+  }
+}

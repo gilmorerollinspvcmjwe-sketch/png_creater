@@ -1,0 +1,217 @@
+{
+  "title": "Vibe Coding",
+  "subtitle": "AI 编程工作流，让代码编写成为「感觉」",
+  "description": "使用 AI 编程工具，从需求描述到代码实现，大幅提升开发效率。7 年产品经验 + AI 编程能力 = 300% 效率提升。",
+  "tools": [
+    {
+      "name": "OpenClaw",
+      "description": "本地 AI 编程工具，Skills 系统支持多模型和 Agent 协作",
+      "proficiency": 5,
+      "level": "精通",
+      "duration": "6 个月",
+      "projects": ["个人网站", "PM Superpowers", "CRM UI 升级", "AI Voice Agent"],
+      "features": ["本地运行", "Skills 系统", "多模型支持", "Agent 协作"],
+      "useCases": ["完整项目开发", "企业级应用", "Skills 开发", "自动化脚本"],
+      "color": "accent-primary"
+    },
+    {
+      "name": "Claude Code",
+      "description": "Anthropic 官方代码助手，擅长长上下文理解和复杂推理",
+      "proficiency": 5,
+      "level": "精通",
+      "duration": "4 个月",
+      "projects": ["VoiceVault", "RAG SaaS MVP", "AI Journal"],
+      "features": ["长上下文理解", "复杂推理", "项目级分析", "Anthropic 原生"],
+      "useCases": ["长文档理解", "复杂代码分析", "架构设计", "代码审查"],
+      "color": "accent-secondary"
+    },
+    {
+      "name": "Trae",
+      "description": "字节国产 AI 编程工具，中文理解好，合规友好",
+      "proficiency": 4,
+      "level": "熟练",
+      "duration": "3 个月",
+      "projects": ["Excel Farm", "Z-Survival", "快速原型"],
+      "features": ["中文理解", "国产模型", "字节生态", "合规友好"],
+      "useCases": ["中文项目", "快速原型", "国产场景"],
+      "color": "accent-success"
+    },
+    {
+      "name": "Cursor",
+      "description": "AI 代码编辑器，VS Code 体验，智能补全和 Chat 集成",
+      "proficiency": 4,
+      "level": "熟练",
+      "duration": "6 个月",
+      "projects": ["AI Journal", "Bole Game", "Excel Aim Trainer"],
+      "features": ["VS Code 体验", "智能补全", "Chat 集成", "多模型切换"],
+      "useCases": ["日常开发", "代码补全", "快速迭代", "重构优化"],
+      "color": "accent-warning"
+    },
+    {
+      "name": "Windsurf",
+      "description": "Flow 功能强大，上下文理解好，适合快速原型",
+      "proficiency": 3,
+      "level": "熟悉",
+      "duration": "2 个月",
+      "projects": ["快速原型"],
+      "features": ["Flow 功能", "上下文理解", "快速启动"],
+      "useCases": ["快速原型验证", "简单项目"],
+      "color": "accent-info"
+    }
+  ],
+  "workflow": {
+    "name": "Vibe Coding 工作流",
+    "steps": [
+      {
+        "step": 1,
+        "name": "需求描述",
+        "description": "用自然语言描述需求，AI 理解意图",
+        "output": "需求文档/PRD",
+        "aiRole": "理解需求，生成结构化描述"
+      },
+      {
+        "step": 2,
+        "name": "代码框架生成",
+        "description": "AI 根据需求生成代码框架和结构",
+        "output": "项目骨架/组件结构",
+        "aiRole": "生成代码框架，搭建项目结构"
+      },
+      {
+        "step": 3,
+        "name": "迭代优化",
+        "description": "AI 重构代码、补全细节、优化实现",
+        "output": "完整功能代码",
+        "aiRole": "迭代优化，补全细节，重构改进"
+      },
+      {
+        "step": 4,
+        "name": "代码审查",
+        "description": "AI 检查安全性、性能、可维护性",
+        "output": "审查报告/改进建议",
+        "aiRole": "安全检查，性能分析，最佳实践建议"
+      },
+      {
+        "step": 5,
+        "name": "测试生成",
+        "description": "AI 编写单元测试、集成测试",
+        "output": "测试代码/测试报告",
+        "aiRole": "生成测试用例，编写测试代码"
+      },
+      {
+        "step": 6,
+        "name": "文档生成",
+        "description": "AI 编写 README、注释、API 文档",
+        "output": "README/API 文档/代码注释",
+        "aiRole": "生成文档，编写注释，输出说明"
+      }
+    ]
+  },
+  "principles": [
+    {
+      "name": "清晰描述意图",
+      "description": "用自然语言清晰描述需求，让 AI 理解你的意图",
+      "tips": ["提供上下文背景", "描述预期结果", "给出示例参考"]
+    },
+    {
+      "name": "迭代而非一次性",
+      "description": "通过多次迭代逐步完善，而不是一次性生成",
+      "tips": ["先生成框架", "逐步补全细节", "持续优化改进"]
+    },
+    {
+      "name": "审查而非信任",
+      "description": "审查 AI 生成的代码，确保质量和安全",
+      "tips": ["检查逻辑正确性", "验证安全性", "确认最佳实践"]
+    },
+    {
+      "name": "学习而非依赖",
+      "description": "通过 AI 学习新知识，而不是完全依赖",
+      "tips": ["理解生成原理", "学习最佳实践", "逐步提升能力"]
+    }
+  ],
+  "cases": [
+    {
+      "id": "vibe-case-1",
+      "title": "个人网站完整开发",
+      "tool": "OpenClaw + Claude",
+      "time": "2 小时",
+      "deliverables": ["10 页面完整网站", "响应式设计", "真实简历数据"],
+      "workflow": [
+        "描述网站结构和页面需求",
+        "AI 生成 React + Tailwind 项目骨架",
+        "迭代优化设计和交互效果",
+        "填充真实简历和项目数据",
+        "部署到 Vercel"
+      ],
+      "learnings": ["清晰的页面结构描述", "逐步迭代优化", "真实数据填充"]
+    },
+    {
+      "id": "vibe-case-2",
+      "title": "PM Superpowers Skills 开发",
+      "tool": "OpenClaw",
+      "time": "3 小时",
+      "deliverables": ["33 个文件", "12 个专业技能", "完整框架"],
+      "workflow": [
+        "规划 12 个技能的结构和内容",
+        "AI 生成每个技能的 SKILL.md",
+        "创建模板和示例文件",
+        "编写使用指南",
+        "测试和优化"
+      ],
+      "learnings": ["Skills 系统理解", "批量生成技巧", "结构化输出"]
+    },
+    {
+      "id": "vibe-case-3",
+      "title": "Excel Farm 游戏开发",
+      "tool": "Trae + Cursor",
+      "time": "2 天",
+      "deliverables": ["完整农场 RPG", "4 大系统", "Excel 伪装界面"],
+      "workflow": [
+        "描述游戏概念和 Excel 伪装需求",
+        "AI 生成游戏核心逻辑",
+        "迭代优化动画和交互",
+        "完善游戏系统和平衡",
+        "测试和调试"
+      ],
+      "learnings": ["创意描述技巧", "游戏逻辑实现", "动画优化"]
+    },
+    {
+      "id": "vibe-case-4",
+      "title": "RAG SaaS MVP 开发",
+      "tool": "Claude Code + OpenClaw",
+      "time": "3 天",
+      "deliverables": ["多模态知识库", "用户认证", "向量检索"],
+      "workflow": [
+        "描述 RAG 系统架构需求",
+        "AI 生成前后端代码骨架",
+        "集成 LlamaIndex 和 pgvector",
+        "实现多格式文档解析",
+        "部署和测试"
+      ],
+      "learnings": ["RAG 架构理解", "多模态处理", "Supabase 集成"]
+    }
+  ],
+  "stats": {
+    "totalProjects": "10+",
+    "efficiencyGain": "300%",
+    "toolsMastered": 5,
+    "hoursSaved": "200+",
+    "aiCodeRatio": "80%"
+  },
+  "resources": [
+    {
+      "name": "OpenClaw 官方文档",
+      "url": "https://openclaw.com",
+      "description": "本地 AI 编程工具，Skills 系统"
+    },
+    {
+      "name": "Claude Code 使用指南",
+      "url": "https://anthropic.com",
+      "description": "Anthropic 官方代码助手"
+    },
+    {
+      "name": "Cursor 官方网站",
+      "url": "https://cursor.sh",
+      "description": "AI 代码编辑器"
+    }
+  ]
+}

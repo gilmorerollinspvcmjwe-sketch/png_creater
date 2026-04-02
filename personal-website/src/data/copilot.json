@@ -1,0 +1,378 @@
+{
+  "workflow": {
+    "morning": [
+      {
+        "time": "09:00",
+        "task": "检查邮件和消息",
+        "aiTool": "OpenClaw",
+        "description": "AI 自动总结邮件要点，标记重要事项"
+      },
+      {
+        "time": "09:30",
+        "task": "日报生成",
+        "aiTool": "Claude",
+        "description": "根据昨日工作自动生成日报草稿"
+      },
+      {
+        "time": "10:00",
+        "task": "任务排序",
+        "aiTool": "Gemini",
+        "description": "AI 分析任务优先级，推荐处理顺序"
+      }
+    ],
+    "afternoon": [
+      {
+        "time": "14:00",
+        "task": "需求分析",
+        "aiTool": "Claude",
+        "description": "AI 辅助需求拆解、边界识别"
+      },
+      {
+        "time": "15:00",
+        "task": "PRD 撰写",
+        "aiTool": "OpenClaw + Claude",
+        "description": "AI 生成 PRD 草稿，撰写时间缩短 60%"
+      },
+      {
+        "time": "16:00",
+        "task": "代码编写",
+        "aiTool": "OpenClaw + Cursor",
+        "description": "AI 辅助代码编写、审查、重构"
+      }
+    ],
+    "evening": [
+      {
+        "time": "18:00",
+        "task": "总结复盘",
+        "aiTool": "Claude",
+        "description": "AI 辅助今日工作总结"
+      },
+      {
+        "time": "18:30",
+        "task": "计划调整",
+        "aiTool": "Gemini",
+        "description": "AI 帮助调整明日计划"
+      }
+    ]
+  },
+  "multiAgentSystem": {
+    "name": "Multi-Agent 协作系统",
+    "description": "搭建多 Agent 协作系统，开发效率提升 300%",
+    "roles": [
+      {
+        "name": "Coder Agent",
+        "model": "GLM-5",
+        "role": "后端开发/功能实现",
+        "responsibilities": ["功能开发", "Bug 修复", "代码重构", "API 实现"]
+      },
+      {
+        "name": "Frontend Agent",
+        "model": "GLM-5",
+        "role": "前端开发/React 组件",
+        "responsibilities": ["React 组件开发", "UI 实现", "交互设计", "样式调整"]
+      },
+      {
+        "name": "PM Agent",
+        "model": "MiniMax-M2.7",
+        "role": "产品需求分析/文档编写",
+        "responsibilities": ["需求分析", "PRD 撰写", "竞品调研", "用户故事"]
+      },
+      {
+        "name": "QA Agent",
+        "model": "Qwen-3.5",
+        "role": "测试执行/报告生成",
+        "responsibilities": ["测试用例设计", "测试执行", "Bug 分析", "报告生成"]
+      },
+      {
+        "name": "Architect Agent",
+        "model": "Qwen-3.5",
+        "role": "技术方案/代码审查",
+        "responsibilities": ["技术方案设计", "架构评审", "代码审查", "性能优化"]
+      }
+    ],
+    "workflow": [
+      {
+        "step": 1,
+        "agent": "PM Agent",
+        "action": "分析需求 → 输出 PRD",
+        "output": "产品需求文档"
+      },
+      {
+        "step": 2,
+        "agent": "Architect Agent",
+        "action": "设计技术方案",
+        "output": "技术方案文档"
+      },
+      {
+        "step": 3,
+        "agent": "Coder/Frontend Agent",
+        "action": "并行开发",
+        "output": "前后端代码"
+      },
+      {
+        "step": 4,
+        "agent": "QA Agent",
+        "action": "执行测试",
+        "output": "测试报告"
+      },
+      {
+        "step": 5,
+        "agent": "Main Session",
+        "action": "所有结果汇总到主会话",
+        "output": "完整交付物"
+      }
+    ],
+    "metrics": {
+      "prdTime": {
+        "before": "3 小时",
+        "after": "30 分钟",
+        "improvement": "6 倍提效"
+      },
+      "codeTime": {
+        "before": "2 天",
+        "after": "4 小时",
+        "improvement": "4 倍提效"
+      },
+      "testCoverage": {
+        "before": "手动 20%",
+        "after": "自动 80%",
+        "improvement": "4 倍提升"
+      },
+      "overallEfficiency": "300% 效率提升"
+    }
+  },
+  "agents": [
+    {
+      "name": "coder",
+      "role": "代码编写",
+      "useCases": ["功能开发", "Bug 修复", "代码重构"],
+      "model": "Claude/Gemini/GLM-5"
+    },
+    {
+      "name": "pm",
+      "role": "产品经理",
+      "useCases": ["需求分析", "PRD 撰写", "竞品调研"],
+      "model": "Claude/MiniMax-M2.7"
+    },
+    {
+      "name": "qa",
+      "role": "质量检查",
+      "useCases": ["代码审查", "测试用例", "Bug 分析"],
+      "model": "Claude/Qwen-3.5"
+    },
+    {
+      "name": "architect",
+      "role": "架构设计",
+      "useCases": ["技术方案", "架构评审", "性能优化"],
+      "model": "Gemini/Qwen-3.5"
+    },
+    {
+      "name": "frontend",
+      "role": "前端开发",
+      "useCases": ["UI 实现", "交互设计", "样式调整"],
+      "model": "Claude/GLM-5"
+    }
+  ],
+  "cases": [
+    {
+      "id": "case-crm-ui",
+      "title": "CRM UI 升级规划",
+      "category": "企业级应用",
+      "pain": "传统开发需要 2 周，UI 设计规范不统一",
+      "solution": "使用 OpenClaw AI 编程，Design Tokens + i18n + a11y 高标准架构",
+      "result": "生成 14 个文档 + 15 个代码骨架，仅需 1 天完成规划",
+      "improvement": "2 周 → 1 天（14 倍提效）",
+      "deliverables": ["14 个文档", "15 个代码骨架", "Design Tokens 系统", "i18n 配置", "a11y 规范"],
+      "reusable": true,
+      "steps": [
+        "分析现有 CRM 系统结构和痛点",
+        "设计 Design Tokens 系统和主题架构",
+        "生成 i18n 国际化配置和 a11y 无障碍规范",
+        "AI 生成各页面重构方案和代码骨架",
+        "输出完整升级规划文档"
+      ]
+    },
+    {
+      "id": "case-pm-superpowers",
+      "title": "PM Superpowers 技能包",
+      "category": "AI 工具",
+      "pain": "PM 方法论分散，创建完整技能包需要 1 周",
+      "solution": "使用 OpenClaw Skills 系统，AI 批量生成 12 个专业技能",
+      "result": "创建 33 个文件（技能定义 + 模板 + 示例），仅需 3 小时",
+      "improvement": "1 周 → 3 小时（14 倍提效）",
+      "deliverables": ["33 个文件", "12 个专业技能", "完整方法论框架"],
+      "reusable": true,
+      "steps": [
+        "规划 12 个 PM 专业技能的结构",
+        "AI 生成每个技能的 SKILL.md 定义",
+        "创建模板和示例文件",
+        "编写使用指南和最佳实践",
+        "测试和优化技能效果"
+      ]
+    },
+    {
+      "id": "case-personal-website",
+      "title": "个人网站搭建",
+      "category": "个人项目",
+      "pain": "前端开发技能有限，传统开发需要 3 天",
+      "solution": "OpenClaw AI 编程，从设计到部署全程 AI 辅助",
+      "result": "完整 10 页面 + 真实简历，仅需 2 小时完成",
+      "improvement": "3 天 → 2 小时（12 倍提效）",
+      "deliverables": ["10 页面完整网站", "真实简历数据", "响应式设计"],
+      "reusable": true,
+      "steps": [
+        "规划网站结构和页面",
+        "AI 生成 React + Tailwind 代码",
+        "迭代优化设计和交互",
+        "填充真实简历和项目数据",
+        "部署到 Vercel"
+      ]
+    },
+    {
+      "id": "case-prd-writing",
+      "title": "PRD 撰写提效",
+      "category": "日常工作",
+      "pain": "PRD 撰写耗时 3 小时，结构不统一",
+      "solution": "Claude 根据需求要点生成 PRD 草稿，使用模板确保结构统一",
+      "result": "撰写时间缩短 60%，仅需 30 分钟",
+      "improvement": "3 小时 → 30 分钟（6 倍提效）",
+      "reusable": true,
+      "steps": [
+        "输入需求要点和背景",
+        "AI 生成 PRD 草稿",
+        "人工审核和补充细节",
+        "输出结构化 PRD"
+      ]
+    },
+    {
+      "id": "case-competitor-analysis",
+      "title": "竞品分析自动化",
+      "category": "调研分析",
+      "pain": "竞品信息分散，分析报告耗时 2 天",
+      "solution": "AI 辅助收集竞品信息、分析对比、生成报告",
+      "result": "从 2 天缩短到 4 小时",
+      "improvement": "2 天 → 4 小时（4 倍提效）",
+      "reusable": false,
+      "steps": [
+        "定义竞品范围和分析维度",
+        "AI 辅助信息收集和整理",
+        "结构化对比分析",
+        "生成分析报告"
+      ]
+    },
+    {
+      "id": "case-monthly-report",
+      "title": "月度报告自动化",
+      "category": "日常工作",
+      "pain": "手动整理数据、编写报告，耗时 3 小时",
+      "solution": "OpenClaw 自动抓取数据 → Gemini 分析数据 → Claude 生成报告",
+      "result": "30 分钟完成，数据更全面，洞察更深入",
+      "improvement": "3 小时 → 30 分钟（6 倍提效）",
+      "reusable": true,
+      "steps": [
+        "定义数据源和关键指标",
+        "编写自动化数据抓取脚本",
+        "AI 分析数据生成洞察",
+        "生成结构化报告"
+      ]
+    },
+    {
+      "id": "case-ai-app-prototype",
+      "title": "AI 应用快速原型",
+      "category": "产品开发",
+      "pain": "验证 AI 应用想法，传统开发需要数周",
+      "solution": "使用 OpenClaw + Supabase 快速搭建原型",
+      "result": "VoiceVault/RAG SaaS/Excel Farm 等项目，平均 2-3 天完成 MVP",
+      "improvement": "10+ AI 应用落地",
+      "deliverables": ["VoiceVault", "RAG SaaS", "Excel Farm", "Excel Aim Trainer", "Bole Game", "Z-Survival", "AI Journal"],
+      "reusable": true,
+      "steps": [
+        "定义 MVP 核心功能",
+        "AI 生成前后端代码",
+        "集成 AI API（Gemini/TTS/ASR）",
+        "快速验证和迭代"
+      ]
+    }
+  ],
+  "stats": {
+    "efficiencyGain": "300%",
+    "hoursSavedPerMonth": 40,
+    "tasksAutomated": 15,
+    "aiToolsUsed": 5,
+    "projectsCompleted": "10+ AI 应用",
+    "multiAgentRoles": 5,
+    "multiAgentEfficiency": "PRD 6倍/代码 4倍/测试 4倍"
+  },
+  "tools": [
+    {
+      "name": "OpenClaw",
+      "category": "AI 编程",
+      "proficiency": "⭐⭐⭐⭐⭐",
+      "duration": "6 个月",
+      "projects": ["个人网站", "PM Superpowers", "CRM UI 升级"],
+      "useCases": ["网站开发", "自动化脚本", "AI 应用开发", "工具集成", "Skills 系统"]
+    },
+    {
+      "name": "Claude Code",
+      "category": "AI 编程",
+      "proficiency": "⭐⭐⭐⭐⭐",
+      "duration": "4 个月",
+      "projects": ["VoiceVault", "RAG SaaS"],
+      "useCases": ["长文档理解", "代码分析", "复杂推理", "项目级开发"]
+    },
+    {
+      "name": "Trae",
+      "category": "AI 编程",
+      "proficiency": "⭐⭐⭐⭐",
+      "duration": "3 个月",
+      "projects": ["Excel Farm", "Z-Survival"],
+      "useCases": ["中文理解", "国产模型", "合规场景", "快速原型"]
+    },
+    {
+      "name": "Cursor",
+      "category": "AI 编程",
+      "proficiency": "⭐⭐⭐⭐",
+      "duration": "6 个月",
+      "projects": ["AI Journal", "Bole Game"],
+      "useCases": ["代码补全", "代码审查", "重构优化", "日常开发"]
+    },
+    {
+      "name": "Windsurf",
+      "category": "AI 编程",
+      "proficiency": "⭐⭐⭐",
+      "duration": "2 个月",
+      "projects": ["快速原型"],
+      "useCases": ["快速原型", "代码生成"]
+    },
+    {
+      "name": "Gemini",
+      "category": "LLM",
+      "proficiency": "精通",
+      "useCases": ["数据分析", "任务排序", "代码生成", "AI Voice Agent 核心"]
+    },
+    {
+      "name": "Claude",
+      "category": "LLM",
+      "proficiency": "精通",
+      "useCases": ["文档撰写", "需求分析", "方案设计", "代码编写"]
+    },
+    {
+      "name": "GLM",
+      "category": "LLM",
+      "proficiency": "熟练",
+      "useCases": ["中文理解", "国产场景", "Multi-Agent"]
+    },
+    {
+      "name": "MiniMax",
+      "category": "LLM/TTS",
+      "proficiency": "熟练",
+      "useCases": ["TTS 语音合成", "PM Agent", "多模态"]
+    },
+    {
+      "name": "Supabase",
+      "category": "后端服务",
+      "proficiency": "熟练",
+      "useCases": ["数据库", "认证", "向量存储", "实时订阅"]
+    }
+  ]
+}
