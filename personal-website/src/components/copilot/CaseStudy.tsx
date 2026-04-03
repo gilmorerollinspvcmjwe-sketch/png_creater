@@ -1,4 +1,4 @@
-import { Repeat } from 'lucide-react'
+import { Repeat, Package } from 'lucide-react'
 import Card from '../common/Card'
 import Badge from '../common/Badge'
 
@@ -12,6 +12,7 @@ interface CaseStudyProps {
     improvement: string
     reusable: boolean
     steps: string[]
+    deliverables?: string[]
   }
 }
 
@@ -69,6 +70,23 @@ export default function CaseStudy({ caseData }: CaseStudyProps) {
           </div>
         ))}
       </div>
+
+      {/* Deliverables */}
+      {caseData.deliverables && caseData.deliverables.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-dark-700/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Package className="w-4 h-4 text-accent-primary" />
+            <p className="text-xs text-dark-500">交付物</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {caseData.deliverables.map((deliverable) => (
+              <Badge key={deliverable} variant="primary" size="sm">
+                {deliverable}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Decorative */}
       <div className="absolute -bottom-8 -right-8 w-24 h-24 bg-gradient-to-tl from-accent-primary/10 to-transparent rounded-tl-full" />

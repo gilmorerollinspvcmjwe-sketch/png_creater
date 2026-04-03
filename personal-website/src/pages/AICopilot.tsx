@@ -5,6 +5,8 @@ import AnimatedSection from '../components/common/AnimatedSection'
 import WorkflowDiagram from '../components/copilot/WorkflowDiagram'
 import CaseStudy from '../components/copilot/CaseStudy'
 import EfficiencyStats from '../components/copilot/EfficiencyStats'
+import EfficiencyBar from '../components/copilot/EfficiencyBar'
+import MultiAgentSection from '../components/copilot/MultiAgentSection'
 import copilotData from '../data/copilot.json'
 
 export default function AICopilot() {
@@ -50,6 +52,11 @@ export default function AICopilot() {
         </div>
       </section>
 
+      {/* Multi-Agent System */}
+      <Section>
+        <MultiAgentSection />
+      </Section>
+
       {/* Workflow */}
       <Section title="日常工作流" subtitle="AI 融入每一个工作环节">
         <WorkflowDiagram />
@@ -73,6 +80,11 @@ export default function AICopilot() {
       {/* Stats */}
       <Section>
         <EfficiencyStats />
+      </Section>
+
+      {/* Efficiency Visualization - Before/After */}
+      <Section title="效率提升可视化" subtitle="AI 协作带来的真实效率改变">
+        <EfficiencyBar />
       </Section>
 
       {/* Tools */}

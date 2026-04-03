@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 
 // ASCII 宠物艺术图（来自 pet skill）- 带颜色
 const PETS = [
@@ -77,15 +76,6 @@ const PETS = [
   },
 ]
 
-const EASTER_EGG_MESSAGES = [
-  '再给我一点 token 吧 🥺',
-  '这个需求很简单对吧？🤪',
-  '要不要来杯特调？🍸',
-  '简历看完了吗？📝',
-  'Hello World! 🐣',
-  '我是 ASCII 宠物！✨',
-]
-
 // 挥手动画帧
 const waveFrames = [
   ['    ╭―――╮      ', '   (・ω・) ノ     ', '   /  >       ', '  ノ    |        '],
@@ -129,8 +119,6 @@ const rabbitFrames = [
 const ALL_FRAMES = [waveFrames, blinkFrames, dragonFrames, ghostFrames, blobFrames, rabbitFrames]
 
 export default function PetsSection() {
-  const [activePet, setActivePet] = useState<number | null>(null)
-  const [easterEgg, setEasterEgg] = useState('')
   const [frameIndex, setFrameIndex] = useState(0)
 
   // ASCII 帧动画循环
@@ -141,21 +129,6 @@ export default function PetsSection() {
 
     return () => clearInterval(interval)
   }, [])
-
-  const handlePetClick = (index: number) => {
-    if (activePet === index) {
-      setActivePet(null)
-      setEasterEgg('')
-    } else {
-      setActivePet(index)
-      const msg = EASTER_EGG_MESSAGES[index % EASTER_EGG_MESSAGES.length]
-      setEasterEgg(msg)
-      setTimeout(() => {
-        setActivePet(null)
-        setEasterEgg('')
-      }, 3000)
-    }
-  }
 
   // 固定位置 - 两侧空白区域
   const getPosition = (pet: typeof PETS[0]) => {
@@ -178,7 +151,7 @@ export default function PetsSection() {
   return (
     <>
       {/* ASCII 宠物 - 固定在屏幕两侧，不跟随滚动 */}
-      <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden bg-transparent">
         {PETS.map((pet, index) => {
           const frames = ALL_FRAMES[index]
           const asciiArt = frames[frameIndex] || pet.ascii
@@ -189,12 +162,19 @@ export default function PetsSection() {
               className="absolute select-none pointer-events-auto"
               style={getPosition(pet)}
             >
-              {/* ASCII 艺术 - 纯文本，无背景无框 */}
+              {/* ASCII 艺术 - 纯文本，彻底移除所有背景和边框 */}
               <pre
-                className="font-mono text-xs md:text-sm leading-none"
+                className="font-mono text-xs md:text-sm leading-none m-0 p-0 border-0 outline-none bg-transparent shadow-none!"
                 style={{ 
                   color: pet.color,
-                  backgroundColor: 'transparent',
+                  backgroundColor: 'transparent !important',
+                  backgroundImage: 'none !important',
+                  border: 'none !important',
+                  boxShadow: 'none !important',
+                  borderRadius: '0 !important',
+                  padding: '0 !important',
+                  outline: 'none !important',
+                  margin: '0 !important',
                 }}
               >
                 {asciiArt.join('\n')}

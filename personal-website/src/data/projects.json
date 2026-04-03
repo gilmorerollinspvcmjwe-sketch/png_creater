@@ -6,6 +6,16 @@
       "description": "正式工作相关的产品项目",
       "projects": [
         {
+          "id": "personal-website",
+          "name": "个人作品网站",
+          "description": "展示 AI 产品经理作品的专业网站，10+ 页面完整设计，响应式布局",
+          "tech": ["React 19", "TypeScript", "Vite", "Framer Motion", "Tailwind CSS"],
+          "status": "已完成",
+          "highlights": ["10+ 页面完整设计", "AI 编程开发", "响应式布局", "真实简历数据"],
+          "link": "",
+          "github": "workspace/personal-website"
+        },
+        {
           "id": "ai-voice-bot",
           "name": "智呼语音机器人",
           "description": "大模型语音智能体配置平台，LLM+TTS+ASR 全链路集成",

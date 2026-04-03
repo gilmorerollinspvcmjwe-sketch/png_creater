@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Github, Linkedin, Mail, ExternalLink, Heart } from 'lucide-react'
+import { Github, Linkedin, Mail, ExternalLink } from 'lucide-react'
 
 const socialLinks = [
   { icon: Github, href: 'https://github.com/laoxu', label: 'GitHub' },

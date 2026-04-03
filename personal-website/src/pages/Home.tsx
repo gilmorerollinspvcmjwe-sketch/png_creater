@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import HeroSection from '../components/home/HeroSection'
 import StatsSection from '../components/home/StatsSection'
+import ExcelFarmHighlight from '../components/home/ExcelFarmHighlight'
 import HighlightsSection from '../components/home/HighlightsSection'
 import FeaturedProjects from '../components/home/FeaturedProjects'
 import PetsSection from '../components/home/PetsSection'
@@ -16,6 +17,7 @@ export default function Home() {
     >
       <HeroSection />
       <StatsSection />
+      <ExcelFarmHighlight />
       <HighlightsSection />
       <FeaturedProjects />
       {/* 宠物动画层 */}

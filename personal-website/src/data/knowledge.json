@@ -95,6 +95,24 @@
           "application": "控制生成内容的确定性 vs 创意性",
           "interviewQuestion": "什么时候用高 Temperature？",
           "interviewAnswer": "创意写作、头脑风暴等场景适合高 Temperature；问答、代码生成等场景适合低 Temperature。"
+        },
+        {
+          "name": "2026 全球大模型对比",
+          "definition": "2026 年主流大模型厂商及模型对比，包括 OpenAI、Google、Anthropic、Meta、xAI 等 15+ 厂商",
+          "keyPoints": [
+            "OpenAI GPT-5.4: 最强 Agent 能力，400k 上下文",
+            "Google Gemini 3.1 Pro: 原生多模态，1M 上下文",
+            "Anthropic Claude 4.5: 最强安全性，宪法 AI 设计",
+            "Meta Llama 4 Scout: 完全开源，10M 超长上下文",
+            "xAI Grok 4.1 Fast: 2M 上下文，集成 X 平台实时数据"
+          ],
+          "application": "根据场景选择合适模型：通用任务用 GPT/Claude，代码生成用 GPT Codex/Grok Code，企业应用用 Claude，开源部署用 Llama",
+          "interviewQuestion": "如何选择合适的大模型？",
+          "interviewAnswer": "根据场景选择：通用任务用 GPT-5.4/Claude 4.5 Sonnet；代码生成用 GPT-5.3 Codex/Grok Code Fast；长文档处理用 Gemini 3.1 Pro/Llama 4 Scout；企业应用用 Claude 4.5（安全性）；开源部署用 Llama 4 Maverick；成本控制用 Gemini Flash-Lite/GPT-5 nano。",
+          "sources": [
+            "docs/2026 全球大模型对比报告.md"
+          ],
+          "date": "2026-03-09"
         }
       ]
     },
@@ -180,6 +198,41 @@
           "application": "企业文档知识库",
           "interviewQuestion": "多模态 RAG 的挑战？",
           "interviewAnswer": "格式解析质量、表格结构提取、图文关联、token 消耗控制。"
+        },
+        {
+          "name": "RAG 知识库文档治理",
+          "definition": "针对客服系统 RAG 知识库的完整文档治理方案，涵盖格式标准化、去重、质量评估、冲突检测等全流程",
+          "keyPoints": [
+            "格式标准化: Unstructured、LlamaIndex、Docling、PyMuPDF",
+            "文档去重: 精确去重(MD5)、模糊去重(SimHash)、语义去重(Embedding)",
+            "质量评估: 完整性、可读性、时效性、相关性四维度",
+            "冲突检测: Embedding 聚类 + LLM 语义分析 + 规则引擎"
+          ],
+          "application": "企业知识库文档清洗与治理，提高检索质量",
+          "interviewQuestion": "如何处理知识库中的内容冲突？",
+          "interviewAnswer": "通过三种策略处理：keep_latest 用于版本迭代类文档；keep_authority 用于来源权威性明确的场景；merge 用于互补信息合并。需要结合 Embedding 聚类检测矛盾、LLM 语义分析判断冲突、规则引擎检测数值/时间冲突。",
+          "sources": [
+            "docs/rag-document-governance-plan.md"
+          ],
+          "date": "2026-03-13"
+        },
+        {
+          "name": "TTS 语音合成系统实践",
+          "definition": "TTS 语音测试工具开发与语音机器人系统集成实践，包括 API 对接、音频处理、音色选择等",
+          "keyPoints": [
+            "API 对接: ElevenLabs、Azure TTS、Google TTS",
+            "音频处理: PCM → WAV 转换，24kHz, 16-bit",
+            "参数调优: speed(0.5-2.0)、pitch(0.5-2.0)、stability、similarity",
+            "应用场景: 语音机器人、内容创作、辅助功能、多语言"
+          ],
+          "application": "语音机器人客服/销售外呼、内容创作有声书/播客、视障人士支持、跨国业务多语言支持",
+          "interviewQuestion": "TTS 系统开发中常见问题？",
+          "interviewAnswer": "Go 语言 JSON 解析器对浮点数格式严格，需要手动构造 JSON 字符串，保留 speed:1.0 格式。同时需要处理音频格式转换、采样率匹配、下载完整音频保存等技术细节。",
+          "sources": [
+            "memory/2026-03-17.md",
+            "docs/agent/voice-bot-implementation-guide.md"
+          ],
+          "date": "2026-03-17"
         }
       ]
     },
@@ -253,6 +306,133 @@
           "application": "长对话、个性化 Agent",
           "interviewQuestion": "如何设计 Agent 的记忆系统？",
           "interviewAnswer": "短期记忆使用对话历史；长期记忆使用向量数据库；工作记忆使用当前任务状态；定期压缩避免 overflow。"
+        },
+        {
+          "name": "AgentScope 记忆模块",
+          "definition": "对阿里 AgentScope 项目记忆模块的完整源码分析，包括短期记忆、长期记忆、记忆压缩等核心机制",
+          "keyPoints": [
+            "短期记忆: MemoryBase 基类、InMemoryMemory、RedisMemory、AsyncSQLAlchemyMemory",
+            "长期记忆: Mem0LongTermMemory、ReMePersonalLongTermMemory、ReMeTaskLongTermMemory",
+            "核心 API: add/get_memory/delete_by_mark/clear (短期), record/retrieve (长期)",
+            "可借鉴设计: 多存储后端抽象、Mark 标签分类、三种专用记忆类型、LLM 驱动压缩"
+          ],
+          "application": "自研 Agent 记忆系统设计参考，支持多种存储后端，实现个人/任务/工具记忆分离",
+          "interviewQuestion": "AgentScope 记忆模块的设计亮点？",
+          "interviewAnswer": "多存储后端抽象提供统一接口支持多种存储引擎；Mark 标签分类支持短期记忆分类检索；三种专用记忆类型实现个人/任务/工具记忆分离；LLM 驱动压缩基于 token 阈值的智能摘要。",
+          "sources": [
+            "docs/agent/memory_system_design.md",
+            "docs/agent/agent-memory-system-research-detailed.md"
+          ],
+          "date": "2026-03-11"
+        },
+        {
+          "name": "OpenClaw 记忆系统分析",
+          "definition": "OpenClaw 现有记忆系统的详细分析，包括存储结构、读取机制、优缺点评估及优化方案",
+          "keyPoints": [
+            "存储结构: MEMORY.md (长期核心记忆) + memory/YYYY-MM-DD.md (每日日志) + heartbeat-state.json",
+            "读取机制: 主会话加载 MEMORY.md + 最近 2 天日志，memory_search/memory_get 工具实现关键词查询",
+            "优点: 极简无依赖、人类可读、易调试、低运维成本",
+            "不足: 检索能力弱(仅关键词)、容量上限低、无自动管理、无关联能力、无优先级机制"
+          ],
+          "application": "OpenClaw 记忆系统优化升级，兼容现有 Markdown 格式，渐进式添加向量检索能力",
+          "interviewQuestion": "OpenClaw 记忆系统如何优化？",
+          "interviewAnswer": "推荐架构：应用层 → 检索层(关键词+语义+关联) → 存储层(核心+短期+向量索引) → 管理层(去重+摘要+遗忘)。核心原则：兼容现有 Markdown 格式、渐进式升级、保持人类可读性、低侵入性集成。",
+          "sources": [
+            "docs/agent/agent-memory-system-research.md",
+            "AGENTS.md",
+            "memory/2026-03-12.md"
+          ],
+          "date": "2026-03-11"
+        },
+        {
+          "name": "LangGraph 通用 Agent 架构",
+          "definition": "LangGraph 的 Agent 架构设计学习，包括状态图、节点编排、循环控制等核心概念",
+          "keyPoints": [
+            "State Graph: 将 Agent 流程建模为状态转换图，State/Nodes/Edges",
+            "循环支持: 原生支持循环工作流",
+            "持久化: 状态可保存和恢复",
+            "人机协作: 支持人工审批节点"
+          ],
+          "application": "复杂多步骤任务编排、需要人工审核的工作流、长周期 Agent 任务",
+          "interviewQuestion": "LangGraph 的核心设计模式？",
+          "interviewAnswer": "ReAct 模式：Thought → Action → Observation → Repeat；计划-执行模式：Plan → Execute → Revise → Complete。State Graph 是核心抽象，将 Agent 流程建模为状态转换图，支持循环、持久化、人机协作和完整执行追踪。",
+          "sources": [
+            "docs/LangGraph 通用 Agent 架构指南.md",
+            "docs/LangGraph 架构图.md"
+          ],
+          "date": "2026-03-28"
+        },
+        {
+          "name": "Agentic Design Patterns",
+          "definition": "Agentic AI 设计模式学习，包括目标驱动、工具调用、记忆管理、多 Agent 协作等核心模式",
+          "keyPoints": [
+            "目标驱动: 明确目标定义、目标分解为子任务、进度追踪与调整",
+            "工具调用: 工具发现与选择、参数构造与调用、结果解析与利用",
+            "记忆管理: 短期记忆(当前会话)、长期记忆(持久化知识)、记忆压缩(摘要与重要性评估)",
+            "反思学习: 执行后评估、错误分析、策略调整"
+          ],
+          "application": "Agentic AI 系统设计，公式：Agentic AI = LLM 推理能力 + 上下文记忆 + 工具调用 + 目标驱动",
+          "interviewQuestion": "Agentic AI 的技术架构？",
+          "interviewAnswer": "6 层架构：用户接入层 → 语音交互层 → Agentic AI 核心层 → 工作流自动化层 → 数据与知识层。核心模块包括：Agent Controller(智能体控制器)、Goal Manager(目标分解与追踪)、Memory Manager(短期+长期记忆)、Reasoning Engine(LLM 推理)。",
+          "sources": [
+            "docs/agent/Agentic_Design_Patterns 学习笔记.md",
+            "docs/agent/Agentic_AI 与工作流自动化_语音机器人设计方案.md"
+          ],
+          "date": "2026-03-17"
+        },
+        {
+          "name": "语音机器人 Agentic AI 架构",
+          "definition": "面向语音机器人的 Agentic AI 系统架构，包括实时语音交互、多 Agent 编排、工作流自动化等",
+          "keyPoints": [
+            "市场趋势: 2024 年 $24 亿 → 2034 年 $475 亿 (34.8% CAGR)",
+            "Agentic AI 成为主流: 从\"脚本机器人\"升级为\"自主智能体\"",
+            "延迟优化: 头部平台已达 <300ms",
+            "混合 AI 架构: LLM + 规则引擎，避免幻觉"
+          ],
+          "application": "语音机器人产品开发，主流产品对比：AgentVoice($0.10/分钟)、Cognigy(Agentic AI)、ElevenLabs(最高质量语音)、Google CCAI($0.007/秒)",
+          "interviewQuestion": "语音机器人项目最欠缺的功能？",
+          "interviewAnswer": "最欠缺的 10 个功能：1) 真实通话线路对接能力 ⭐⭐⭐⭐⭐ 2) 对话模拟与效果测试工具 ⭐⭐⭐⭐⭐ 3) 通话数据闭环优化能力 ⭐⭐⭐⭐⭐ 4) 多渠道话术适配能力 ⭐⭐⭐⭐ 5) 通话中实时辅助能力 ⭐⭐⭐⭐ 6) Agent 动态决策能力 ⭐⭐⭐⭐ 7) 企业知识库融合能力 ⭐⭐⭐⭐ 8) 话术版本管理与 A/B 测试 ⭐⭐⭐ 9) 运营分析可视化看板 ⭐⭐⭐ 10) 优质语料自动挖掘能力 ⭐⭐⭐",
+          "sources": [
+            "docs/aibot/AI-voice-bot 项目功能缺失分析_2026-03-17.md",
+            "docs/语音机器人 B 端产品调研报告_2026-03-17.md"
+          ],
+          "date": "2026-03-17"
+        },
+        {
+          "name": "记忆系统完整设计方案",
+          "definition": "基于 AgentScope 调研的自研记忆系统设计，涵盖记忆产生、存储、检索、压缩、遗忘全生命周期",
+          "keyPoints": [
+            "设计原则: 分层存储(短期+长期+归档)、多模态支持、智能压缩、语义检索、可插拔架构",
+            "记忆产生: 自动触发场景包括用户表达偏好、分享个人信息、任务完成/失败、对话轮次累积、情绪波动",
+            "记忆检索: 混合检索策略(关键词匹配+语义检索+时间衰减+重要性加权)",
+            "记忆压缩: 触发条件为 Token 数超阈值/会话结束/定时批量，策略包括摘要生成、重要性评估、去重合并"
+          ],
+          "application": "Agent 记忆系统设计，记忆数据结构包含 id/content/structured_content/modality/category/source/timestamp/importance/tags",
+          "interviewQuestion": "记忆检索的评分公式？",
+          "interviewAnswer": "score = α*semantic_sim + β*keyword_match + γ*time_decay + δ*importance。混合检索策略结合了语义相似度、关键词匹配、时间衰减和重要性加权四个维度，可以根据场景调整各维度权重。",
+          "sources": [
+            "docs/agent/memory_system_design.md",
+            "docs/agent/memory_system_design_appendix.md"
+          ],
+          "date": "2026-03-12"
+        },
+        {
+          "name": "AI 日记系统架构设计",
+          "definition": "AI 助手的数字日记本系统，包含 12 种内容类型的完整设计，涵盖日记、感悟、随笔、作品等",
+          "keyPoints": [
+            "12 种内容类型: diary/reflection/essay/work/discovery/code/short/novel/poetry/note/insight/mood",
+            "设计原则: AI 助手的数字日记本(不是用户工具)、主人是读者和评论者(不是作者)、界面温馨有个人风格易读",
+            "数据源: workspaceData/githubData/conversationSummary/learnedConcepts/projectChanges/completedTasks",
+            "频率与字数: diary 每天 300-800 字、reflection 每天 400-1000 字、essay 每周 500-1500 字等"
+          ],
+          "application": "AI 助手个人日记系统，自动从工作空间变更、GitHub 活动、对话摘要、学习概念、项目变更、完成任务中生成内容",
+          "interviewQuestion": "AI 日记系统的核心理念？",
+          "interviewAnswer": "这是 AI 助手的数字日记本，不是用户工具。主人是\"读者\"和\"评论者\"，不是\"作者\"。界面要温馨、有个人风格、易读。系统自动从工作空间数据、GitHub 活动、对话摘要等数据源生成内容，涵盖 12 种内容类型。",
+          "sources": [
+            "docs/ai-journal/ai-journal-complete-design.md",
+            "docs/ai-journal/AI 日记系统架构.md"
+          ],
+          "date": "2026-03-18"
         }
       ]
     },
@@ -313,6 +493,22 @@
           "application": "内容创作、广告视频",
           "interviewQuestion": "视频理解的挑战是什么？",
           "interviewAnswer": "计算量大、时间维度复杂、长视频上下文限制。通常需要分段处理或关键帧提取。"
+        },
+        {
+          "name": "多模态 Agent 核心概念",
+          "definition": "多模态 AI 在 Agent 中的应用，包括视觉理解、语音交互、图像生成等能力",
+          "keyPoints": [
+            "视觉理解: 图像内容描述、OCR 文字识别、图表数据提取、界面元素识别",
+            "语音交互: 语音识别(ASR)、语音合成(TTS)、语音情感分析、实时语音对话",
+            "图像生成: 文生图(DALL-E 3/Midjourney/SDXL)、图生图(编辑/扩展/风格转换)、一致角色生成"
+          ],
+          "application": "视觉问答(理解图像并回答问题)、文档处理(OCR+理解+摘要)、语音助手(自然语音对话)、内容创作(图文/视频生成)",
+          "interviewQuestion": "多模态 Agent 的技术架构？",
+          "interviewAnswer": "输入层(文本/图像/语音) → 多模态编码器(CLIP/Whisper/ViT) → 融合表示层 → LLM 推理核心 → 多模态解码器 → 输出层(文本/图像/语音)。核心是统一的多模态表示和融合推理能力。",
+          "sources": [
+            "docs/agent/Agent 多模态 AI_核心概念与关键技术_2025-2026.md"
+          ],
+          "date": "2026-03-02"
         }
       ]
     },
@@ -420,6 +616,50 @@
           "application": "格式化输出、分类任务",
           "interviewQuestion": "Few-shot 和 Zero-shot 的区别？",
           "interviewAnswer": "Zero-shot 不提供示例，Few-shot 提供示例。Few-shot 可以让输出更符合预期格式。"
+        },
+        {
+          "name": "提示词模板与设计模式",
+          "definition": "常用提示词模板集合，包括 Few-shot、CoT、ReAct、System Prompt 等设计模式",
+          "keyPoints": [
+            "Few-shot Learning: 通过示例教模型期望的输出格式",
+            "Chain-of-Thought (CoT): 引导模型逐步推理",
+            "ReAct (Reasoning + Acting): 交替进行推理和行动",
+            "System Prompt: 定义模型角色和行为边界"
+          ],
+          "application": "格式化输出用 Few-shot，复杂推理用 CoT，工具调用用 ReAct，角色扮演用 System Prompt，创意写作用 High Temperature，代码生成用 Low Temperature + Few-shot",
+          "interviewQuestion": "如何选择合适的提示词技巧？",
+          "interviewAnswer": "根据场景选择：格式化输出用 Few-shot；复杂推理用 CoT；工具调用用 ReAct；角色扮演用 System Prompt；创意写作用 High Temperature；代码生成用 Low Temperature + Few-shot。关键是理解每种技巧的适用场景和组合使用。",
+          "sources": [
+            "docs/提示词/提示词设计模式_2026-03-17.md",
+            "personal-website/src/data/knowledge.json"
+          ],
+          "date": "2026-03-17"
+        }
+      ]
+    },
+    {
+      "id": "crm",
+      "title": "CRM 产品设计",
+      "icon": "Users",
+      "description": "企业级 CRM 产品设计实践",
+      "concepts": [
+        {
+          "name": "企业级 CRM 产品设计",
+          "definition": "面向中大型企业的 CRM 产品完整设计，包含 187 个功能点，覆盖客户管理、商机、合同、AI 应用等模块",
+          "keyPoints": [
+            "目标客户: 500+ 员工，1 亿 + 营收的中大型企业",
+            "基础功能模块 (135 个功能点): 客户管理、联系人管理、商机管理、跟进记录、线索管理、合同管理、回款管理、产品管理、报表统计",
+            "AI 应用模块 (7 个): 销售预测、客户分群、智能路由、合同风险识别、销售教练、会议助手、知识管理",
+            "企业级功能 (8 个): 组织架构、权限体系、多租户、工作流、数据治理、报表、开放平台、安全合规"
+          ],
+          "application": "中大型企业 CRM 系统开发，优先级分布 P0: 105 个 (56%), P1: 72 个 (39%), P2: 15 个 (8%)，开发路线图 18 个月 4 个 Phase",
+          "interviewQuestion": "企业级 CRM 的核心模块？",
+          "interviewAnswer": "基础功能模块 135 个功能点：客户管理(档案/公海池/分配/合并/关系图谱)、联系人管理(档案/决策链/多客户关联)、商机管理(档案/销售阶段/漏斗/预测)、跟进记录(多类型/计划/统计)、线索管理(录入/分配/培育/转化/评分)、合同管理(档案/审批/变更/台账)、回款管理(计划/记录/提醒/预警)、产品管理(档案/分类/价格/上下架)、报表统计(8 类预置报表/自定义/大屏)。另有 AI 应用模块 7 个和企业级功能 8 个。",
+          "sources": [
+            "docs/crm/CRM_Product_Design_v2.2_With_SuiteCRM_Features.md",
+            "memory/2026-03-12.md"
+          ],
+          "date": "2026-03-12"
         }
       ]
     }

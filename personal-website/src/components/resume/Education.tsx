@@ -3,8 +3,17 @@ import Card from '../common/Card'
 import AnimatedSection from '../common/AnimatedSection'
 import experienceData from '../../data/experience.json'
 
+// 定义认证类型
+interface Certification {
+  name: string
+  issuer: string
+  year: string
+}
+
 export default function Education() {
-  const { education, certifications } = experienceData
+  const { education } = experienceData
+  // 显式声明 certifications 类型
+  const certifications: Certification[] = experienceData.certifications || []
 
   return (
     <div className="space-y-6">
@@ -43,13 +52,13 @@ export default function Education() {
       </div>
 
       {/* Certifications */}
-      {certifications && certifications.length > 0 && (
+      {certifications.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-dark-100 mb-4 flex items-center gap-2">
             <Award className="w-5 h-5 text-accent-primary" />
             专业认证
           </h3>
-          {certifications.map((cert, index) => (
+          {certifications.map((cert: Certification, index: number) => (
             <AnimatedSection
               key={cert.name}
               animation="fadeInUp"

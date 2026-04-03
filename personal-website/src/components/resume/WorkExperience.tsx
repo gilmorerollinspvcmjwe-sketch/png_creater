@@ -1,4 +1,4 @@
-import { MapPin, Users } from 'lucide-react'
+import { MapPin, Users, Cpu, Wrench, TrendingUp } from 'lucide-react'
 import Card from '../common/Card'
 import Badge from '../common/Badge'
 import AnimatedSection from '../common/AnimatedSection'
@@ -53,6 +53,59 @@ export default function WorkExperience() {
                 </Badge>
               ))}
             </div>
+
+            {/* AI Models & Tools */}
+            {exp.aiModels && exp.aiModels.length > 0 && (
+              <div className="mb-4 p-3 rounded-lg bg-accent-primary/10 border border-accent-primary/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Cpu className="w-4 h-4 text-accent-primary" />
+                  <p className="text-accent-primary text-sm font-medium">AI 模型</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {exp.aiModels.map((model) => (
+                    <span key={model} className="text-xs px-2 py-1 rounded-lg bg-dark-900/50 text-dark-300 border border-accent-primary/30">
+                      {model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {exp.aiTools && exp.aiTools.length > 0 && (
+              <div className="mb-4 p-3 rounded-lg bg-accent-secondary/10 border border-accent-secondary/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wrench className="w-4 h-4 text-accent-secondary" />
+                  <p className="text-accent-secondary text-sm font-medium">AI 工具</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {exp.aiTools.map((tool) => (
+                    <span key={tool} className="text-xs px-2 py-1 rounded-lg bg-dark-900/50 text-dark-300 border border-accent-secondary/30">
+                      {tool}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Metrics */}
+            {exp.metrics && (
+              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                {Object.entries(exp.metrics).map(([key, value]) => (
+                  <div key={key} className="p-2 rounded-lg bg-accent-success/10 border border-accent-success/20">
+                    <div className="flex items-center gap-1 mb-1">
+                      <TrendingUp className="w-3 h-3 text-accent-success" />
+                      <p className="text-xs text-dark-500">
+                        {key === 'efficiency' ? '效率提升' : 
+                         key === 'pages' ? '页面升级' : 
+                         key === 'skills' ? '技能包' : 
+                         key === 'applications' ? '应用落地' : key}
+                      </p>
+                    </div>
+                    <p className="text-sm text-accent-success font-semibold">{value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Team size */}
             <div className="flex items-center gap-4 pt-4 border-t border-dark-700/50">
