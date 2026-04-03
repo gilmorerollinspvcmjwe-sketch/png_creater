@@ -5,13 +5,13 @@ import Button from '../common/Button'
 import { useTypewriter } from '../../hooks/useTypewriter'
 import profile from '../../data/profile.json'
 
-// 有记忆点的具体描述（更有个性）
+// 高大上的职位轮播（不局限于语音）
 const roles = [
-  { title: '用 AI 把产品经理效率提升 3 倍', gradient: 'from-accent-primary to-accent-secondary' },
-  { title: '独立开发了 10+ AI 应用的游戏宅', gradient: 'from-accent-secondary to-accent-warning' },
-  { title: '让 Excel 变成农场 RPG 的 PM', gradient: 'from-accent-warning to-accent-success' },
-  { title: '服务过中信/民生/平安/建行的金融 PM', gradient: 'from-accent-success to-accent-primary' },
-  { title: '7年B端产品，专注 AI 语音智能体', gradient: 'from-accent-primary to-accent-secondary' },
+  { title: 'AI 产品专家', gradient: 'from-accent-primary to-accent-secondary' },
+  { title: '大模型语音智能体架构师', gradient: 'from-accent-secondary to-accent-warning' },
+  { title: 'Agent 系统设计者', gradient: 'from-accent-warning to-accent-success' },
+  { title: '企业级 AI 应用实践者', gradient: 'from-accent-success to-accent-primary' },
+  { title: 'AI 工具链建设者', gradient: 'from-accent-primary to-accent-secondary' },
 ]
 
 export default function HeroSection() {

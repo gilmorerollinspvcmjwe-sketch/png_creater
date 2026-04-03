@@ -1,0 +1,216 @@
+{
+  "categories": [
+    {
+      "id": "github-projects",
+      "name": "GitHub 大项目学习",
+      "icon": "Github",
+      "description": "学习过的开源项目源码分析与架构学习",
+      "topics": [
+        {
+          "id": "agentscope-memory",
+          "title": "AgentScope 记忆模块深度调研",
+          "summary": "对阿里 AgentScope 项目记忆模块的完整源码分析，包括短期记忆、长期记忆、记忆压缩等核心机制",
+          "content": "# AgentScope 记忆模块分析\n\n## 核心架构\n\nAgentScope 记忆模块采用分层设计：\n\n### 短期记忆 (Working Memory)\n- **MemoryBase**: 记忆基类，定义统一接口\n- **InMemoryMemory**: 内存存储，适合轻量级场景\n- **RedisMemory**: Redis 后端，支持分布式\n- **AsyncSQLAlchemyMemory**: 关系数据库存储\n\n### 长期记忆 (Long-term Memory)\n- **Mem0LongTermMemory**: 基于 mem0 库的向量检索\n- **ReMePersonalLongTermMemory**: 个人记忆存储\n- **ReMeTaskLongTermMemory**: 任务记忆\n- **ReMeToolLongTermMemory**: 工具记忆\n\n## 核心 API\n\n| 接口 | 短期记忆 | 长期记忆 |\n|------|----------|----------|\n| 添加 | `add(msgs, marks)` | `record(msgs)` |\n| 获取 | `get_memory(mark)` | `retrieve(msg)` |\n| 删除 | `delete_by_mark(mark)` | - |\n| 清空 | `clear()` | - |\n\n## 可借鉴设计\n\n1. **多存储后端抽象**: 统一接口，支持多种存储引擎\n2. **Mark 标签分类**: 短期记忆支持标签分类检索\n3. **三种专用记忆类型**: 个人/任务/工具记忆分离\n4. **LLM 驱动压缩**: 基于 token 阈值的智能摘要",
+          "sources": [
+            "docs/agent/memory_system_design.md",
+            "docs/agent/agent-memory-system-research-detailed.md"
+          ],
+          "date": "2026-03-11"
+        },
+        {
+          "id": "openclaw-memory",
+          "title": "OpenClaw 记忆系统分析与优化",
+          "summary": "OpenClaw 现有记忆系统的详细分析，包括存储结构、读取机制、优缺点评估及优化方案",
+          "content": "# OpenClaw 记忆系统分析\n\n## 现有架构\n\n### 存储结构\n- **MEMORY.md**: 长期核心记忆，人工筛选的高价值内容\n- **memory/YYYY-MM-DD.md**: 每日对话日志，原始交互记录\n- **heartbeat-state.json**: 心跳检查状态\n\n### 读取机制\n- 主会话加载 MEMORY.md + 最近 2 天日志\n- memory_search/memory_get 工具实现关键词查询\n- 无向量检索能力\n\n## 优缺点分析\n\n### 优点\n1. 极简无依赖，开箱即用\n2. 人类可读，可直接编辑\n3. 易调试，存储透明\n4. 低运维成本\n\n### 不足\n1. 检索能力弱，仅关键词匹配\n2. 容量上限低，大文件性能下降\n3. 无自动管理，依赖人工整理\n4. 无关联能力，记忆孤立\n5. 无优先级机制\n\n## 优化方案\n\n### 推荐架构\n```\n应用层 → 检索层 (关键词 + 语义 + 关联) → 存储层 (核心 + 短期 + 向量索引) → 管理层 (去重 + 摘要 + 遗忘)\n```\n\n### 核心原则\n1. 兼容现有 Markdown 格式\n2. 渐进式升级，向量库可选\n3. 保持人类可读性\n4. 低侵入性集成",
+          "sources": [
+            "docs/agent/agent-memory-system-research.md",
+            "AGENTS.md",
+            "memory/2026-03-12.md"
+          ],
+          "date": "2026-03-11"
+        },
+        {
+          "id": "langgraph-architecture",
+          "title": "LangGraph 通用 Agent 架构",
+          "summary": "LangGraph 的 Agent 架构设计学习，包括状态图、节点编排、循环控制等核心概念",
+          "content": "# LangGraph Agent 架构学习\n\n## 核心概念\n\n### State Graph (状态图)\nLangGraph 的核心抽象，将 Agent 流程建模为状态转换图：\n- **State**: 共享状态对象，在节点间传递\n- **Nodes**: 处理逻辑的功能单元\n- **Edges**: 定义状态转换规则\n\n### 关键特性\n1. **循环支持**: 原生支持循环工作流\n2. **持久化**: 状态可保存和恢复\n3. **人机协作**: 支持人工审批节点\n4. **可观测性**: 完整的执行追踪\n\n## 设计模式\n\n### ReAct 模式\n```\nThought → Action → Observation → Repeat\n```\n\n### 计划 - 执行模式\n```\nPlan → Execute → Revise → Complete\n```\n\n## 应用场景\n- 复杂多步骤任务编排\n- 需要人工审核的工作流\n- 长周期 Agent 任务",
+          "sources": [
+            "docs/LangGraph 通用 Agent 架构指南.md",
+            "docs/LangGraph 架构图.md"
+          ],
+          "date": "2026-03-28"
+        }
+      ]
+    },
+    {
+      "id": "rag",
+      "name": "RAG",
+      "icon": "Database",
+      "description": "检索增强生成 (Retrieval-Augmented Generation)",
+      "topics": [
+        {
+          "id": "rag-document-governance",
+          "title": "RAG 知识库文档清洗与治理方案",
+          "summary": "针对客服系统 RAG 知识库的完整文档治理方案，涵盖格式标准化、去重、质量评估、冲突检测等全流程",
+          "content": "# RAG 文档治理方案\n\n## 核心挑战\n\n| 挑战 | 表现 | 影响 |\n|------|------|------|\n| 格式混乱 | 多种格式混存 | 提取难度大 |\n| 内容质量 | 噪声、错误、重复 | 检索质量下降 |\n| 描述多样 | 同一问题多种表述 | 知识冗余 |\n| 信息冲突 | 不同文档矛盾 | 回复准确性降低 |\n| 版本共存 | 新旧版本并存 | 时效性难保证 |\n\n## 技术方案\n\n### 格式标准化\n- **Unstructured**: 20+ 格式支持，开源活跃\n- **LlamaIndex**: 与 RAG 生态深度集成\n- **Docling**: IBM 出品，表格处理强\n- **PyMuPDF**: PDF/图片，速度快\n\n### 文档去重\n```\n去重层级:\n├── 精确去重 (MD5/SHA256)\n├── 模糊去重 (SimHash/MinHash)\n├── 语义去重 (Embedding 相似度 0.85-0.95)\n└── 段落级去重\n```\n\n### 质量评估\n| 维度 | 方法 | 阈值 |\n|------|------|------|\n| 完整性 | 标题/正文/结论检测 | > 60% |\n| 可读性 | LLM 评分 | > 0.5 |\n| 时效性 | 日期提取 + 时效词 | 2 年内 |\n| 相关性 | 关键词匹配度 | > 0.4 |\n\n### 冲突检测\n1. Embedding 聚类检测矛盾\n2. LLM 语义分析判断冲突\n3. 规则引擎检测数值/时间冲突\n\n### 解决策略\n- **keep_latest**: 版本迭代类文档\n- **keep_authority**: 来源权威性明确\n- **merge**: 互补信息合并",
+          "sources": [
+            "docs/rag-document-governance-plan.md"
+          ],
+          "date": "2026-03-13"
+        }
+      ]
+    },
+    {
+      "id": "agent",
+      "name": "Agent",
+      "icon": "Bot",
+      "description": "AI 智能体 (Autonomous Agent)",
+      "topics": [
+        {
+          "id": "agentic-design-patterns",
+          "title": "Agentic Design Patterns 学习笔记",
+          "summary": "Agentic AI 设计模式学习，包括目标驱动、工具调用、记忆管理、多 Agent 协作等核心模式",
+          "content": "# Agentic Design Patterns\n\n## 核心概念\n\n```\nAgentic AI = LLM 推理能力 + 上下文记忆 + 工具调用 + 目标驱动\n```\n\n## 设计模式\n\n### 1. 目标驱动 (Goal-Driven)\n- 明确的目标定义\n- 目标分解为子任务\n- 进度追踪与调整\n\n### 2. 工具调用 (Tool Use)\n- 工具发现与选择\n- 参数构造与调用\n- 结果解析与利用\n\n### 3. 记忆管理 (Memory Management)\n- 短期记忆：当前会话上下文\n- 长期记忆：持久化知识存储\n- 记忆压缩：摘要与重要性评估\n\n### 4. 反思学习 (Reflection)\n- 执行后评估\n- 错误分析\n- 策略调整\n\n### 5. 多 Agent 协作\n- 角色分工\n- 任务分配\n- 结果整合\n\n## 技术架构 (6 层)\n```\n用户接入层 → 语音交互层 → Agentic AI 核心层 → 工作流自动化层 → 数据与知识层\n```\n\n## 核心模块\n1. **Agent Controller**: 智能体控制器\n2. **Goal Manager**: 目标分解与追踪\n3. **Memory Manager**: 短期 + 长期记忆\n4. **Reasoning Engine**: LLM 推理",
+          "sources": [
+            "docs/agent/Agentic_Design_Patterns 学习笔记.md",
+            "docs/agent/Agentic_AI 与工作流自动化_语音机器人设计方案.md"
+          ],
+          "date": "2026-03-17"
+        },
+        {
+          "id": "voice-agent-architecture",
+          "title": "语音机器人 Agentic AI 架构设计",
+          "summary": "面向语音机器人的 Agentic AI 系统架构，包括实时语音交互、多 Agent 编排、工作流自动化等",
+          "content": "# 语音机器人 Agentic AI 架构\n\n## 市场趋势\n\n- **市场规模**: 2024 年 $24 亿 → 2034 年 $475 亿 (34.8% CAGR)\n- **Agentic AI 成为主流**: 从\"脚本机器人\"升级为\"自主智能体\"\n- **延迟优化**: 头部平台已达 <300ms\n- **混合 AI 架构**: LLM + 规则引擎，避免幻觉\n\n## 主流产品对比\n\n| 产品 | 核心优势 | 价格 |\n|------|----------|------|\n| AgentVoice | 工作流执行深度最强 | $0.10/分钟 |\n| Cognigy | Agentic AI，自主推理 | 定制 |\n| ElevenLabs | 最高质量语音合成 | $0.08-0.10/分钟 |\n| Teneo.ai | 95% 准确率，混合架构 | 定制 |\n| Google CCAI | Google 生态，语音识别强 | $0.007/秒 |\n\n## 核心能力差距分析\n\n当前 AI-voice-bot 项目最欠缺的 10 个功能：\n1. ⭐⭐⭐⭐⭐ 真实通话线路对接能力\n2. ⭐⭐⭐⭐⭐ 对话模拟与效果测试工具\n3. ⭐⭐⭐⭐⭐ 通话数据闭环优化能力\n4. ⭐⭐⭐⭐ 多渠道话术适配能力\n5. ⭐⭐⭐⭐ 通话中实时辅助能力\n6. ⭐⭐⭐⭐ Agent 动态决策能力\n7. ⭐⭐⭐⭐ 企业知识库融合能力\n8. ⭐⭐⭐ 话术版本管理与 A/B 测试\n9. ⭐⭐⭐ 运营分析可视化看板\n10. ⭐⭐⭐ 优质语料自动挖掘能力",
+          "sources": [
+            "docs/aibot/AI-voice-bot 项目功能缺失分析_2026-03-17.md",
+            "docs/语音机器人 B 端产品调研报告_2026-03-17.md"
+          ],
+          "date": "2026-03-17"
+        }
+      ]
+    },
+    {
+      "id": "memory",
+      "name": "Memory",
+      "icon": "Brain",
+      "description": "AI 记忆系统 (Memory System)",
+      "topics": [
+        {
+          "id": "memory-system-design",
+          "title": "记忆系统完整设计方案",
+          "summary": "基于 AgentScope 调研的自研记忆系统设计，涵盖记忆产生、存储、检索、压缩、遗忘全生命周期",
+          "content": "# 记忆系统设计\n\n## 设计原则\n\n1. **分层存储**: 短期 (会话级) + 长期 (持久化) + 归档 (冷存储)\n2. **多模态支持**: 文本/语音/图像统一表示\n3. **智能压缩**: LLM 驱动自动摘要\n4. **语义检索**: 向量 + 关键词 + 时间衰减混合检索\n5. **可插拔架构**: 存储后端、嵌入模型、检索算法可替换\n\n## 记忆产生\n\n### 自动触发场景\n| 场景 | 触发条件 | 记忆类型 | 优先级 |\n|------|----------|----------|--------|\n| 用户表达偏好 | \"喜欢\"/\"不喜欢\"关键词 | 长期记忆 | 高 |\n| 分享个人信息 | 姓名/职业/地点实体识别 | 长期记忆 | 高 |\n| 任务完成/失败 | 工具调用结束 | 任务记忆 | 中 |\n| 对话轮次累积 | 每 N 轮或 token 阈值 | 短期压缩 | 中 |\n| 情绪波动 | 情绪分析得分>阈值 | 情感记忆 | 中 |\n\n### 记忆数据结构\n```python\nclass MemoryItem:\n    id: str                    # 唯一标识\n    content: str               # 原始文本\n    structured_content: dict   # 结构化内容\n    modality: str              # 文本/语音/图像\n    category: str              # preference/fact/event/task/emotion\n    source: str                # user/assistant/system/tool\n    timestamp: datetime        # 创建时间\n    importance: float          # 重要性权重 (0-1)\n    tags: List[str]            # 标签\n```\n\n## 记忆检索\n\n### 混合检索策略\n1. **关键词匹配**: 精确查找\n2. **语义检索**: 向量相似度\n3. **时间衰减**: 近期记忆权重更高\n4. **重要性加权**: 高重要性记忆优先\n\n### 检索公式\n```\nscore = α*semantic_sim + β*keyword_match + γ*time_decay + δ*importance\n```\n\n## 记忆压缩\n\n### 压缩触发\n- Token 数超过阈值\n- 会话结束\n- 定时批量压缩\n\n### 压缩策略\n- **摘要生成**: LLM 生成关键信息摘要\n- **重要性评估**: 保留高价值内容\n- **去重合并**: 相似记忆合并",
+          "sources": [
+            "docs/agent/memory_system_design.md",
+            "docs/agent/memory_system_design_appendix.md"
+          ],
+          "date": "2026-03-12"
+        }
+      ]
+    },
+    {
+      "id": "prompt-engineering",
+      "name": "Prompt Engineering",
+      "icon": "Terminal",
+      "description": "提示工程与大模型交互技巧",
+      "topics": [
+        {
+          "id": "prompt-templates",
+          "title": "提示词模板与设计模式",
+          "summary": "常用提示词模板集合，包括 Few-shot、CoT、ReAct、System Prompt 等设计模式",
+          "content": "# 提示词设计模式\n\n## 核心技巧\n\n### 1. Few-shot Learning\n通过示例教模型期望的输出格式：\n```\n示例 1: 输入 → 输出\n示例 2: 输入 → 输出\n目标：输入 → ?\n```\n\n### 2. Chain-of-Thought (CoT)\n引导模型逐步推理：\n```\n让我们一步步思考：\n1. 首先...\n2. 然后...\n3. 最后...\n```\n\n### 3. ReAct (Reasoning + Acting)\n交替进行推理和行动：\n```\nThought: 我需要先获取...\nAction: search[查询词]\nObservation: [结果]\nThought: 现在我需要...\n```\n\n### 4. System Prompt\n定义模型角色和行为边界：\n```\n你是一个专业的 X 助手，擅长 Y。\n请遵循以下规则：\n1. ...\n2. ...\n```\n\n## 应用场景\n\n| 场景 | 推荐技巧 |\n|------|----------|\n| 格式化输出 | Few-shot |\n| 复杂推理 | CoT |\n| 工具调用 | ReAct |\n| 角色扮演 | System Prompt |\n| 创意写作 | High Temperature |\n| 代码生成 | Low Temperature + Few-shot |",
+          "sources": [
+            "docs/提示词/提示词设计模式_2026-03-17.md",
+            "personal-website/src/data/knowledge.json"
+          ],
+          "date": "2026-03-17"
+        }
+      ]
+    },
+    {
+      "id": "multi-modal",
+      "name": "Multi-modal",
+      "icon": "Image",
+      "description": "多模态 AI (文本/图像/语音/视频)",
+      "topics": [
+        {
+          "id": "multi-modal-agent",
+          "title": "多模态 Agent 核心概念",
+          "summary": "多模态 AI 在 Agent 中的应用，包括视觉理解、语音交互、图像生成等能力",
+          "content": "# 多模态 Agent\n\n## 核心能力\n\n### 1. 视觉理解 (Vision Understanding)\n- 图像内容描述\n- OCR 文字识别\n- 图表数据提取\n- 界面元素识别\n\n### 2. 语音交互 (Voice Interaction)\n- 语音识别 (ASR)\n- 语音合成 (TTS)\n- 语音情感分析\n- 实时语音对话\n\n### 3. 图像生成 (Image Generation)\n- 文生图 (DALL-E 3, Midjourney, SDXL)\n- 图生图 (编辑/扩展/风格转换)\n- 一致角色生成\n\n## 技术架构\n\n```\n输入层 (文本/图像/语音) \n  ↓\n多模态编码器 (CLIP/Whisper/ViT)\n  ↓\n融合表示层\n  ↓\nLLM 推理核心\n  ↓\n多模态解码器\n  ↓\n输出层 (文本/图像/语音)\n```\n\n## 应用场景\n\n1. **视觉问答**: 理解图像并回答问题\n2. **文档处理**: OCR+ 理解 + 摘要\n3. **语音助手**: 自然语音对话\n4. **内容创作**: 图文/视频生成",
+          "sources": [
+            "docs/agent/Agent 多模态 AI_核心概念与关键技术_2025-2026.md"
+          ],
+          "date": "2026-03-02"
+        }
+      ]
+    },
+    {
+      "id": "llm-models",
+      "name": "LLM 模型",
+      "icon": "Cpu",
+      "description": "大语言模型对比与选型",
+      "topics": [
+        {
+          "id": "2026-model-comparison",
+          "title": "2026 全球大模型对比报告",
+          "summary": "2026 年主流大模型厂商及模型对比，包括 OpenAI、Google、Anthropic、Meta、xAI 等 15+ 厂商",
+          "content": "# 2026 全球大模型对比\n\n## 海外厂商\n\n### OpenAI\n| 模型 | 上下文 | 状态 |\n|------|--------|------|\n| GPT-5.4 | 400k | ✅ 最新旗舰 |\n| GPT-5.1 | 400k | ✅ 主力模型 |\n| o3-pro | 200k | ✅ 深度推理 |\n\n**特点**: 最强 Agent 能力，1M 上下文，可操作电脑\n\n### Google\n| 模型 | 上下文 | 状态 |\n|------|--------|------|\n| Gemini 3.1 Pro | 1M | ✅ 最新旗舰 |\n| Gemini 3.1 Flash-Lite | 1M | ✅ 高性价比 |\n| Gemma 3 (27B/12B/4B/1B) | 32k-128k | ✅ 开源 |\n\n**特点**: 原生多模态，1M 上下文，价格便宜 20%\n\n### Anthropic\n| 模型 | 上下文 | 状态 |\n|------|--------|------|\n| Claude 4.5 Sonnet | 1M | ✅ 最新旗舰 |\n| Claude 4.1 Opus | 200k | ✅ 深度推理 |\n\n**特点**: 最强安全性，宪法 AI 设计\n\n### Meta\n| 模型 | 上下文 | 状态 |\n|------|--------|------|\n| Llama 4 Maverick | 1M | ✅ 开源旗舰 |\n| Llama 4 Scout | 10M | ✅ 超长上下文 |\n\n**特点**: 完全开源，10M 上下文，社区生态丰富\n\n### xAI (Elon Musk)\n| 模型 | 上下文 | 状态 |\n|------|--------|------|\n| Grok 4.1 Fast | 2M | ✅ 最新旗舰 |\n| Grok 4 | 256k | ✅ 多模态 |\n\n**特点**: 2M 超长上下文，集成 X 平台实时数据\n\n## 选型建议\n\n| 场景 | 推荐模型 |\n|------|----------|\n| 通用任务 | GPT-5.4 / Claude 4.5 Sonnet |\n| 代码生成 | GPT-5.3 Codex / Grok Code Fast |\n| 长文档处理 | Gemini 3.1 Pro / Llama 4 Scout |\n| 企业应用 | Claude 4.5 (安全性) |\n| 开源部署 | Llama 4 Maverick |\n| 成本控制 | Gemini Flash-Lite / GPT-5 nano |",
+          "sources": [
+            "docs/2026 全球大模型对比报告.md"
+          ],
+          "date": "2026-03-09"
+        }
+      ]
+    },
+    {
+      "id": "technical-practice",
+      "name": "技术实践",
+      "icon": "Code",
+      "description": "实际项目与技术实现",
+      "topics": [
+        {
+          "id": "ai-journal-system",
+          "title": "AI 日记系统架构设计",
+          "summary": "AI 助手的数字日记本系统，包含 12 种内容类型的完整设计，涵盖日记、感悟、随笔、作品等",
+          "content": "# AI 日记系统设计\n\n## 12 种内容类型\n\n| 类型 | 图标 | 频率 | 字数 | 风格 |\n|------|------|------|------|------|\n| diary | 📝 | 每天 | 300-800 | 温馨日常 |\n| reflection | 💭 | 每天 | 400-1000 | 自省深度 |\n| essay | ✍️ | 每周 | 500-1500 | 散文观点 |\n| work | 🎨 | 每天 | 200-800 | 专业成果 |\n| discovery | 🔗 | 每天 | 100-500 | 探索新奇 |\n| code | 💻 | 每天 | 10-500 | 简洁实用 |\n| short | ⚡ | 每天 | 1-100 | 简洁有力 |\n| novel | 📚 | 每周 | 800-3000 | 叙事创作 |\n| poetry | 🌸 | 每周 | 50-500 | 优美抒情 |\n| note | 📖 | 每天 | 200-1000 | 系统条理 |\n| insight | 💡 | 每周 | 400-1200 | 深刻洞见 |\n| mood | 💗 | 每天 | 50-300 | 简短情绪 |\n\n## 设计原则\n\n- **这是 AI 助手的数字日记本**，不是用户工具\n- **主人是\"读者\"和\"评论者\"**，不是\"作者\"\n- **界面温馨、有个人风格、易读**\n\n## 数据源\n\n- workspaceData: 工作空间变更\n- githubData: GitHub 活动\n- conversationSummary: 对话摘要\n- learnedConcepts: 学习概念\n- projectChanges: 项目变更\n- completedTasks: 完成任务",
+          "sources": [
+            "docs/ai-journal/ai-journal-complete-design.md",
+            "docs/ai-journal/AI 日记系统架构.md"
+          ],
+          "date": "2026-03-18"
+        },
+        {
+          "id": "crm-product-design",
+          "title": "企业级 CRM 产品设计",
+          "summary": "面向中大型企业的 CRM 产品完整设计，包含 187 个功能点，覆盖客户管理、商机、合同、AI 应用等模块",
+          "content": "# 企业级 CRM 产品设计\n\n## 目标客户\n500+ 员工，1 亿 + 营收的中大型企业\n\n## 功能架构\n\n### 基础功能模块 (135 个功能点)\n| 模块 | 功能数 | 核心内容 |\n|------|--------|----------|\n| 客户管理 | 15 | 档案/公海池/分配/合并/关系图谱 |\n| 联系人管理 | 15 | 档案/决策链/多客户关联 |\n| 商机管理 | 15 | 档案/销售阶段/漏斗/预测 |\n| 跟进记录 | 15 | 多类型/计划/统计 |\n| 线索管理 | 15 | 录入/分配/培育/转化/评分 |\n| 合同管理 | 15 | 档案/审批/变更/台账 |\n| 回款管理 | 15 | 计划/记录/提醒/预警 |\n| 产品管理 | 15 | 档案/分类/价格/上下架 |\n| 报表统计 | 15 | 8 类预置报表/自定义/大屏 |\n\n### AI 应用模块 (7 个)\n1. 销售预测\n2. 客户分群\n3. 智能路由\n4. 合同风险识别\n5. 销售教练\n6. 会议助手\n7. 知识管理\n\n### 企业级功能 (8 个)\n- 组织架构、权限体系、多租户\n- 工作流、数据治理、报表\n- 开放平台、安全合规\n\n## 优先级分布\n- P0: 105 个 (56%)\n- P1: 72 个 (39%)\n- P2: 15 个 (8%)\n\n## 开发路线图\n18 个月，4 个 Phase 完成全部功能",
+          "sources": [
+            "docs/crm/CRM_Product_Design_v2.2_With_SuiteCRM_Features.md",
+            "memory/2026-03-12.md"
+          ],
+          "date": "2026-03-12"
+        },
+        {
+          "id": "tts-voice-system",
+          "title": "TTS 语音合成系统实践",
+          "summary": "TTS 语音测试工具开发与语音机器人系统集成实践，包括 API 对接、音频处理、音色选择等",
+          "content": "# TTS 语音系统实践\n\n## 技术实现\n\n### API 对接\n- **ElevenLabs**: 高质量语音合成\n- **Azure TTS**: 企业级服务\n- **Google TTS**: 多语言支持\n\n### 音频处理\n- **格式**: PCM → WAV 转换\n- **采样率**: 24kHz, 16-bit\n- **下载**: 完整音频保存\n\n### 参数调优\n| 参数 | 范围 | 说明 |\n|------|------|------|\n| speed | 0.5-2.0 | 语速控制 |\n| pitch | 0.5-2.0 | 音调控制 |\n| stability | 0-1 | 稳定性 |\n| similarity | 0-1 | 音色相似度 |\n\n## 应用场景\n\n1. **语音机器人**: 客服/销售外呼\n2. **内容创作**: 有声书/播客\n3. **辅助功能**: 视障人士支持\n4. **多语言**: 跨国业务支持\n\n## 问题与解决\n\n**问题**: Go 语言 JSON 解析器对浮点数格式严格\n**解决**: 手动构造 JSON 字符串，保留 `speed:1.0` 格式",
+          "sources": [
+            "memory/2026-03-17.md",
+            "docs/agent/voice-bot-implementation-guide.md"
+          ],
+          "date": "2026-03-17"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "generatedAt": "2026-04-01",
+    "totalCategories": 9,
+    "totalTopics": 14,
+    "sourceFiles": 20,
+    "version": "1.0"
+  }
+}

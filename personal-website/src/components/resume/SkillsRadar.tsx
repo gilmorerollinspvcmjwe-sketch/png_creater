@@ -64,17 +64,12 @@ export default function SkillsRadar() {
               transition={{ delay: index * 0.1 }}
               className="p-4 rounded-xl bg-dark-900/50 border border-dark-700/50"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <h4 className="text-dark-100 font-medium">{cat.name}</h4>
                 <div className="inline-flex items-center gap-1">
                   <span className="text-accent-primary font-semibold">{cat.level}%</span>
                 </div>
               </div>
-              
-              {/* Description */}
-              {cat.description && (
-                <p className="text-dark-400 text-sm mb-3">{cat.description}</p>
-              )}
               
               {/* Progress bar */}
               <div className="w-full h-2 rounded-full bg-dark-800/50 mb-3">

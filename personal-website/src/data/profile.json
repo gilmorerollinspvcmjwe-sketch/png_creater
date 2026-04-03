@@ -28,37 +28,37 @@
   "coreSkills": ["AI Agent 架构", "语音智能体", "RAG 知识库", "企业级 CRM", "AI 工具链", "Multi-Agent 协作"],
   "coreSkillsHighlight": [
     {
-      "title": "Multi-Agent 架构",
-      "icon": "🤖",
-      "description": "搭建多 Agent 协作系统（coder/pm/qa/architect/frontend），开发效率提升 300%"
+      "title": "[待补充：能力1]",
+      "icon": "⚡",
+      "description": "[待补充：能力描述]"
     },
     {
-      "title": "AI Voice Agent",
-      "icon": "🎙️",
-      "description": "主导 AI 语音智能体 0→1 产品设计，支持 LLM+TTS+ASR 全链路配置"
+      "title": "[待补充：能力2]",
+      "icon": "🚀",
+      "description": "[待补充：能力描述]"
     },
     {
-      "title": "RAG 知识库",
-      "icon": "📚",
-      "description": "搭建 RAG 知识库 SaaS 平台，支持多模态文档解析与智能问答"
+      "title": "[待补充：能力3]",
+      "icon": "🎯",
+      "description": "[待补充：能力描述]"
     },
     {
-      "title": "企业级 CRM",
-      "icon": "💼",
-      "description": "主导 CRM 系统 100+ 页面 UI 升级，采用 Design Tokens + i18n + a11y 高标准架构"
+      "title": "[待补充：能力4]",
+      "icon": "🧠",
+      "description": "[待补充：能力描述]"
     },
     {
-      "title": "AI 工具链",
-      "icon": "🛠️",
-      "description": "精通 OpenClaw/Claude Code/Trae/Cursor，独立开发 10+ AI 应用工具"
+      "title": "[待补充：能力5]",
+      "icon": "💡",
+      "description": "[待补充：能力描述]"
     }
   ],
   "jobPreference": {
-    "industry": "AI/大模型/语音智能体/企业级应用",
-    "companySize": "中大型企业/成长期科技公司",
-    "techStack": "LLM/RAG/Agent/Multi-Agent/React/TypeScript",
-    "culture": "技术驱动/产品导向/开放协作/快速迭代",
-    "location": "北京/上海/深圳/杭州"
+    "industry": "[待补充：行业偏好]",
+    "companySize": "[待补充：公司规模]",
+    "techStack": "[待补充：技术栈]",
+    "culture": "[待补充：团队文化]",
+    "location": "[待补充：地点]"
   },
   "skillTags": [
     { "name": "AI Agent 架构", "icon": "🤖" },

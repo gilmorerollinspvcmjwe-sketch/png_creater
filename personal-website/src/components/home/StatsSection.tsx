@@ -1,33 +1,30 @@
 import { motion } from 'framer-motion'
 import { useInView } from 'framer-motion'
 import { useRef } from 'react'
-import { Clock, Users, Rocket } from 'lucide-react'
+import { Users, Clock, TrendingUp } from 'lucide-react'
 import { useCountUp } from '../../hooks/useCountUp'
 
 const stats = [
   {
-    icon: Clock,
-    label: 'B 端产品经验',
-    value: 7,
-    suffix: '年+',
-    color: 'accent-primary',
-    source: null, // 不需要来源说明
-  },
-  {
     icon: Users,
-    label: '服务客户',
-    value: 30,
-    suffix: '+',
-    color: 'accent-secondary',
-    source: '中信/民生/平安/建行等',
+    label: '产品用户',
+    value: 10,
+    suffix: '万+',
+    color: 'accent-primary',
   },
   {
-    icon: Rocket,
-    label: 'AI 应用落地',
-    value: 10,
-    suffix: '+',
+    icon: Clock,
+    label: '日均通话时长',
+    value: 5,
+    suffix: '万+分钟',
+    color: 'accent-secondary',
+  },
+  {
+    icon: TrendingUp,
+    label: '工作效率提升',
+    value: 300,
+    suffix: '%',
     color: 'accent-success',
-    source: 'VoiceVault/RAG SaaS/Excel Farm等',
   },
 ]
 
@@ -77,19 +74,7 @@ export default function StatsSection() {
                   </div>
 
                   {/* Label */}
-                  <p className="text-dark-400 mb-2">{stat.label}</p>
-
-                  {/* Source 说明 */}
-                  {stat.source && (
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={isInView ? { opacity: 1 } : {}}
-                      transition={{ duration: 0.3, delay: index * 0.1 + 0.5 }}
-                      className="text-xs text-dark-500"
-                    >
-                      ({stat.source})
-                    </motion.p>
-                  )}
+                  <p className="text-dark-400">{stat.label}</p>
 
                   {/* Glow effect on hover */}
                   <div className={`absolute inset-0 rounded-2xl bg-${stat.color}/5 opacity-0 group-hover:opacity-100 transition-opacity`} />
