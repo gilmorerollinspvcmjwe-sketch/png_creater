@@ -1,6 +1,13 @@
 import JSZip from 'jszip';
+import { getState, setState, setStep, subscribe, notify, selectAllFiles, deselectAllFiles, clearFiles } from './modules/stateManager.js';
+import { initUploadManager, handleFiles, renderUploadQueue, deleteFile as deleteBatchFile } from './modules/uploadManager.js';
+import { initProcessManager, startBatchProcess, cancelBatchProcess, renderProcessPanel } from './modules/processManager.js';
+import { initNamingManager, renderNamingPreview } from './modules/namingManager.js';
+import { initDownloadManager, startBatchDownload, renderDownloadPanel } from './modules/downloadManager.js';
 
-const state = {
+let currentMode = 'single';
+
+const singleState = {
   originalImage: null,
   originalImageData: null,
   processedImageData: null,
@@ -13,43 +20,44 @@ const state = {
   selectedBgColor: null,
 };
 
-const elements = {
-  fileInput: document.getElementById('file-input'),
-  uploadBtn: document.getElementById('upload-btn'),
-  replaceBtn: document.getElementById('replace-btn'),
-  uploadArea: document.getElementById('upload-area'),
-  originalPreview: document.getElementById('original-preview'),
-  fileName: document.getElementById('file-name'),
-  fileSize: document.getElementById('file-size'),
-  fileDimension: document.getElementById('file-dimension'),
-  bgMode: document.getElementById('bg-mode'),
-  tolerance: document.getElementById('tolerance'),
-  toleranceValue: document.getElementById('tolerance-value'),
-  edgeRemoval: document.getElementById('edge-removal'),
-  edgeRemovalValue: document.getElementById('edge-removal-value'),
-  mergeDistance: document.getElementById('merge-distance'),
-  mergeDistanceValue: document.getElementById('merge-distance-value'),
-  minArea: document.getElementById('min-area'),
-  minAreaValue: document.getElementById('min-area-value'),
-  padding: document.getElementById('padding'),
-  paddingValue: document.getElementById('padding-value'),
-  processBtn: document.getElementById('process-btn'),
-  colorPickerBtn: document.getElementById('color-picker-btn'),
-  transparentPreview: document.getElementById('transparent-preview'),
-  previewContainer: document.getElementById('preview-container'),
-  darkBgToggle: document.getElementById('dark-bg-toggle'),
-  lightBgToggle: document.getElementById('light-bg-toggle'),
-  candidateCount: document.getElementById('candidate-count'),
-  candidatesGrid: document.getElementById('candidates-grid'),
-  exportSelectedBtn: document.getElementById('export-selected-btn'),
-  exportAllBtn: document.getElementById('export-all-btn'),
-  downloadZipBtn: document.getElementById('download-zip-btn'),
-  loadingOverlay: document.getElementById('loading-overlay'),
-  loadingText: document.getElementById('loading-text'),
+const singleElements = {
+  fileInput: null,
+  uploadBtn: null,
+  replaceBtn: null,
+  uploadArea: null,
+  originalPreview: null,
+  fileName: null,
+  fileSize: null,
+  fileDimension: null,
+  bgMode: null,
+  tolerance: null,
+  toleranceValue: null,
+  edgeRemoval: null,
+  edgeRemovalValue: null,
+  mergeDistance: null,
+  mergeDistanceValue: null,
+  minArea: null,
+  minAreaValue: null,
+  padding: null,
+  paddingValue: null,
+  processBtn: null,
+  colorPickerBtn: null,
+  transparentPreview: null,
+  previewContainer: null,
+  darkBgToggle: null,
+  lightBgToggle: null,
+  candidateCount: null,
+  candidatesGrid: null,
+  exportSelectedBtn: null,
+  exportAllBtn: null,
+  downloadZipBtn: null,
+  loadingOverlay: null,
+  loadingText: null,
 };
 
 let worker = null;
 let colorPickerMode = false;
+let processTimeout = null;
 
 async function init() {
   try {
@@ -63,10 +71,10 @@ async function init() {
     alert('无法创建图像处理 Worker，请刷新页面重试');
     return;
   }
-  
+
   worker.onmessage = function(e) {
     const { type, result, assets, error } = e.data;
-    
+
     switch (type) {
       case 'processImageResult':
         handleProcessedImage(result);
@@ -82,101 +90,164 @@ async function init() {
         break;
     }
   };
-  
+
   worker.onerror = function(e) {
     console.error('Worker error:', e);
     hideLoading();
     alert('处理图片时出错: ' + e.message);
   };
-  
-  setupEventListeners();
+
+  cacheSingleElements();
+  setupSingleEventListeners();
+  setupModeSwitch();
+
+  await initProcessManager();
+  initUploadManager();
+  initNamingManager();
+  initDownloadManager();
+  setupBatchStepNavigation();
+  setupBatchSubscriptions();
 }
 
-function setupEventListeners() {
-  elements.uploadBtn.addEventListener('click', () => elements.fileInput.click());
-  elements.replaceBtn.addEventListener('click', () => elements.fileInput.click());
-  elements.fileInput.addEventListener('change', handleFileSelect);
-  
-  elements.uploadArea.addEventListener('dragover', handleDragOver);
-  elements.uploadArea.addEventListener('dragleave', handleDragLeave);
-  elements.uploadArea.addEventListener('drop', handleDrop);
-  elements.uploadArea.addEventListener('click', (e) => {
-    if (!state.originalImage) {
-      elements.fileInput.click();
+function cacheSingleElements() {
+  singleElements.fileInput = document.getElementById('file-input');
+  singleElements.uploadBtn = document.getElementById('upload-btn');
+  singleElements.replaceBtn = document.getElementById('replace-btn');
+  singleElements.uploadArea = document.getElementById('upload-area');
+  singleElements.originalPreview = document.getElementById('original-preview');
+  singleElements.fileName = document.getElementById('file-name');
+  singleElements.fileSize = document.getElementById('file-size');
+  singleElements.fileDimension = document.getElementById('file-dimension');
+  singleElements.bgMode = document.getElementById('bg-mode');
+  singleElements.tolerance = document.getElementById('tolerance');
+  singleElements.toleranceValue = document.getElementById('tolerance-value');
+  singleElements.edgeRemoval = document.getElementById('edge-removal');
+  singleElements.edgeRemovalValue = document.getElementById('edge-removal-value');
+  singleElements.mergeDistance = document.getElementById('merge-distance');
+  singleElements.mergeDistanceValue = document.getElementById('merge-distance-value');
+  singleElements.minArea = document.getElementById('min-area');
+  singleElements.minAreaValue = document.getElementById('min-area-value');
+  singleElements.padding = document.getElementById('padding');
+  singleElements.paddingValue = document.getElementById('padding-value');
+  singleElements.processBtn = document.getElementById('process-btn');
+  singleElements.colorPickerBtn = document.getElementById('color-picker-btn');
+  singleElements.transparentPreview = document.getElementById('transparent-preview');
+  singleElements.previewContainer = document.getElementById('preview-container');
+  singleElements.darkBgToggle = document.getElementById('dark-bg-toggle');
+  singleElements.lightBgToggle = document.getElementById('light-bg-toggle');
+  singleElements.candidateCount = document.getElementById('candidate-count');
+  singleElements.candidatesGrid = document.getElementById('candidates-grid');
+  singleElements.exportSelectedBtn = document.getElementById('export-selected-btn');
+  singleElements.exportAllBtn = document.getElementById('export-all-btn');
+  singleElements.downloadZipBtn = document.getElementById('download-zip-btn');
+  singleElements.loadingOverlay = document.getElementById('loading-overlay');
+  singleElements.loadingText = document.getElementById('loading-text');
+}
+
+function setupSingleEventListeners() {
+  const el = singleElements;
+
+  el.uploadBtn.addEventListener('click', () => el.fileInput.click());
+  el.replaceBtn.addEventListener('click', () => el.fileInput.click());
+  el.fileInput.addEventListener('change', handleFileSelect);
+
+  el.uploadArea.addEventListener('dragover', handleDragOver);
+  el.uploadArea.addEventListener('dragleave', handleDragLeave);
+  el.uploadArea.addEventListener('drop', handleDrop);
+  el.uploadArea.addEventListener('click', () => {
+    if (!singleState.originalImage) {
+      el.fileInput.click();
     }
   });
-  
-  elements.tolerance.addEventListener('input', (e) => {
-    elements.toleranceValue.textContent = e.target.value;
+
+  el.tolerance.addEventListener('input', (e) => {
+    el.toleranceValue.textContent = e.target.value;
   });
-  elements.toleranceValue.textContent = elements.tolerance.value;
-  
-  elements.edgeRemoval.addEventListener('input', (e) => {
-    elements.edgeRemovalValue.textContent = e.target.value;
+
+  el.edgeRemoval.addEventListener('input', (e) => {
+    el.edgeRemovalValue.textContent = e.target.value;
   });
-  
-  elements.mergeDistance.addEventListener('input', (e) => {
-    elements.mergeDistanceValue.textContent = e.target.value;
+
+  el.mergeDistance.addEventListener('input', (e) => {
+    el.mergeDistanceValue.textContent = e.target.value;
   });
-  
-  elements.minArea.addEventListener('input', (e) => {
-    elements.minAreaValue.textContent = e.target.value;
+
+  el.minArea.addEventListener('input', (e) => {
+    el.minAreaValue.textContent = e.target.value;
   });
-  
-  elements.padding.addEventListener('input', (e) => {
-    elements.paddingValue.textContent = e.target.value;
+
+  el.padding.addEventListener('input', (e) => {
+    el.paddingValue.textContent = e.target.value;
   });
-  
-  elements.processBtn.addEventListener('click', processImage);
-  
-  elements.colorPickerBtn.addEventListener('click', () => {
-    if (!state.originalImage) {
+
+  el.processBtn.addEventListener('click', processImage);
+
+  el.colorPickerBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) {
       alert('请先上传图片');
       return;
     }
     colorPickerMode = !colorPickerMode;
-    elements.colorPickerBtn.textContent = colorPickerMode ? '点击原图取背景色' : '点击背景取色';
+    el.colorPickerBtn.textContent = colorPickerMode ? '点击原图取背景色' : '点击背景取色';
     if (colorPickerMode) {
-      elements.originalPreview.style.cursor = 'crosshair';
+      el.originalPreview.style.cursor = 'crosshair';
     } else {
-      elements.originalPreview.style.cursor = 'default';
+      el.originalPreview.style.cursor = 'default';
     }
   });
-  
-  elements.originalPreview.addEventListener('click', handleImageClick);
-  
-  elements.darkBgToggle.addEventListener('change', updatePreviewBackground);
-  elements.lightBgToggle.addEventListener('change', updatePreviewBackground);
-  
-  elements.exportSelectedBtn.addEventListener('click', exportSelected);
-  elements.exportAllBtn.addEventListener('click', exportAll);
-  elements.downloadZipBtn.addEventListener('click', downloadZip);
-  
-  // 取色按钮始终可用
-  // elements.bgMode.addEventListener('change', (e) => {
-  //   if (e.target.value === 'solid') {
-  //     elements.colorPickerBtn.hidden = false;
-  //   } else {
-  //     elements.colorPickerBtn.hidden = true;
-  //     colorPickerMode = false;
-  //   }
-  // });
+
+  el.originalPreview.addEventListener('click', handleImageClick);
+
+  el.darkBgToggle.addEventListener('change', updatePreviewBackground);
+  el.lightBgToggle.addEventListener('change', updatePreviewBackground);
+
+  el.exportSelectedBtn.addEventListener('click', exportSelected);
+  el.exportAllBtn.addEventListener('click', exportAll);
+  el.downloadZipBtn.addEventListener('click', downloadZip);
+}
+
+function setupModeSwitch() {
+  const modeSingleBtn = document.getElementById('mode-single');
+  const modeBatchBtn = document.getElementById('mode-batch');
+  const singlePanel = document.getElementById('single-mode-panel');
+  const batchPanel = document.getElementById('batch-mode-panel');
+  const singleHeaderInfo = document.getElementById('single-header-info');
+  const singleHeaderActions = document.getElementById('single-header-actions');
+
+  modeSingleBtn.addEventListener('click', () => {
+    currentMode = 'single';
+    modeSingleBtn.classList.add('active');
+    modeBatchBtn.classList.remove('active');
+    singlePanel.classList.add('active');
+    batchPanel.classList.remove('active');
+    singleHeaderInfo.style.display = '';
+    singleHeaderActions.style.display = '';
+  });
+
+  modeBatchBtn.addEventListener('click', () => {
+    currentMode = 'batch';
+    modeBatchBtn.classList.add('active');
+    modeSingleBtn.classList.remove('active');
+    batchPanel.classList.add('active');
+    singlePanel.classList.remove('active');
+    singleHeaderInfo.style.display = 'none';
+    singleHeaderActions.style.display = 'none';
+  });
 }
 
 function handleDragOver(e) {
   e.preventDefault();
-  elements.uploadArea.classList.add('dragover');
+  singleElements.uploadArea.classList.add('dragover');
 }
 
 function handleDragLeave(e) {
   e.preventDefault();
-  elements.uploadArea.classList.remove('dragover');
+  singleElements.uploadArea.classList.remove('dragover');
 }
 
 function handleDrop(e) {
   e.preventDefault();
-  elements.uploadArea.classList.remove('dragover');
-  
+  singleElements.uploadArea.classList.remove('dragover');
   const files = e.dataTransfer.files;
   if (files.length > 0) {
     handleFile(files[0]);
@@ -195,32 +266,32 @@ function handleFile(file) {
     alert('请上传 PNG、JPG 或 WEBP 格式的图片');
     return;
   }
-  
+
   if (file.size > 25 * 1024 * 1024) {
     alert('图片大小不能超过 25MB');
     return;
   }
-  
-  state.fileName = file.name;
-  
+
+  singleState.fileName = file.name;
+
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
-      state.originalImage = img;
-      state.fileWidth = img.width;
-      state.fileHeight = img.height;
-      
-      elements.originalPreview.src = e.target.result;
-      elements.originalPreview.hidden = false;
-      elements.uploadArea.querySelector('.upload-placeholder').style.display = 'none';
-      
-      elements.fileName.textContent = file.name;
-      elements.fileSize.textContent = formatFileSize(file.size);
-      elements.fileDimension.textContent = `${img.width} x ${img.height}`;
-      
-      elements.replaceBtn.disabled = false;
-      elements.processBtn.disabled = false;
+      singleState.originalImage = img;
+      singleState.fileWidth = img.width;
+      singleState.fileHeight = img.height;
+
+      singleElements.originalPreview.src = e.target.result;
+      singleElements.originalPreview.hidden = false;
+      singleElements.uploadArea.querySelector('.upload-placeholder').style.display = 'none';
+
+      singleElements.fileName.textContent = file.name;
+      singleElements.fileSize.textContent = formatFileSize(file.size);
+      singleElements.fileDimension.textContent = `${img.width} x ${img.height}`;
+
+      singleElements.replaceBtn.disabled = false;
+      singleElements.processBtn.disabled = false;
     };
     img.src = e.target.result;
   };
@@ -228,60 +299,52 @@ function handleFile(file) {
 }
 
 function handleImageClick(e) {
-  if (!colorPickerMode || !state.originalImageData) return;
-  
-  const rect = elements.originalPreview.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / rect.width * state.fileWidth);
-  const y = Math.floor((e.clientY - rect.top) / rect.height * state.fileHeight);
-  
-  const idx = (y * state.fileWidth + x) * 4;
-  const r = state.originalImageData.data[idx];
-  const g = state.originalImageData.data[idx + 1];
-  const b = state.originalImageData.data[idx + 2];
-  
-  state.selectedBgColor = [r, g, b];
+  if (!colorPickerMode || !singleState.originalImageData) return;
+
+  const rect = singleElements.originalPreview.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / rect.width * singleState.fileWidth);
+  const y = Math.floor((e.clientY - rect.top) / rect.height * singleState.fileHeight);
+
+  const idx = (y * singleState.fileWidth + x) * 4;
+  const r = singleState.originalImageData.data[idx];
+  const g = singleState.originalImageData.data[idx + 1];
+  const b = singleState.originalImageData.data[idx + 2];
+
+  singleState.selectedBgColor = [r, g, b];
   colorPickerMode = false;
-  elements.originalPreview.style.cursor = 'default';
-  elements.colorPickerBtn.textContent = `已选颜色: rgb(${r}, ${g}, ${b})`;
-  
-  // 自动切换到纯色模式并处理
-  elements.bgMode.value = 'solid';
-  console.log('取色完成，颜色:', [r, g, b], '自动切换到纯色模式');
-  
-  // 自动开始处理
+  singleElements.originalPreview.style.cursor = 'default';
+  singleElements.colorPickerBtn.textContent = `已选颜色: rgb(${r}, ${g}, ${b})`;
+
+  singleElements.bgMode.value = 'solid';
+
   setTimeout(() => {
     processImage();
   }, 100);
 }
 
 function showLoading(text) {
-  elements.loadingText.textContent = text;
-  elements.loadingOverlay.hidden = false;
+  singleElements.loadingText.textContent = text;
+  singleElements.loadingOverlay.hidden = false;
 }
 
 function hideLoading() {
-  elements.loadingOverlay.hidden = true;
+  singleElements.loadingOverlay.hidden = true;
 }
 
-let processTimeout = null;
-
 function processImage() {
-  if (!state.originalImage) return;
-  
+  if (!singleState.originalImage) return;
+
   showLoading('正在处理图片...');
-  console.log('开始处理图片:', state.fileWidth, 'x', state.fileHeight);
-  
+
   const canvas = document.createElement('canvas');
-  canvas.width = state.fileWidth;
-  canvas.height = state.fileHeight;
+  canvas.width = singleState.fileWidth;
+  canvas.height = singleState.fileHeight;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(state.originalImage, 0, 0);
-  
+  ctx.drawImage(singleState.originalImage, 0, 0);
+
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  state.originalImageData = imageData;
-  
-  console.log('图片数据已获取，发送给 Worker');
-  
+  singleState.originalImageData = imageData;
+
   worker.postMessage({
     type: 'processImage',
     data: {
@@ -290,104 +353,98 @@ function processImage() {
         height: imageData.height,
         data: Array.from(imageData.data)
       },
-      bgMode: elements.bgMode.value,
-      tolerance: parseInt(elements.tolerance.value),
-      edgeRemoval: parseInt(elements.edgeRemoval.value),
-      selectedColor: state.selectedBgColor
+      bgMode: singleElements.bgMode.value,
+      tolerance: parseInt(singleElements.tolerance.value),
+      edgeRemoval: parseInt(singleElements.edgeRemoval.value),
+      selectedColor: singleState.selectedBgColor
     }
   });
-  
+
   processTimeout = setTimeout(() => {
-    console.error('处理超时');
     hideLoading();
     alert('处理超时，请尝试使用更小的图片或刷新页面');
   }, 30000);
 }
 
 function handleProcessedImage(result) {
-  console.log('收到处理结果');
   clearTimeout(processTimeout);
-  
+
   const { imageData, bgMask } = result;
-  
+  const newImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+
   const canvas = document.createElement('canvas');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   const ctx = canvas.getContext('2d');
-  
-  const newImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
   ctx.putImageData(newImageData, 0, 0);
-  
-  state.processedImageData = newImageData;
-  state.bgMask = new Uint8Array(bgMask);
-  
-  elements.transparentPreview.src = canvas.toDataURL();
-  elements.transparentPreview.hidden = false;
-  
+
+  singleState.processedImageData = newImageData;
+  singleState.bgMask = new Uint8Array(bgMask);
+
+  singleElements.transparentPreview.src = canvas.toDataURL();
+  singleElements.transparentPreview.hidden = false;
+
   detectAssets();
 }
 
 function detectAssets() {
   showLoading('正在识别候选素材...');
-  console.log('开始识别素材');
-  
+
   worker.postMessage({
     type: 'detectAssets',
     data: {
       imageData: {
-        width: state.processedImageData.width,
-        height: state.processedImageData.height,
-        data: Array.from(state.processedImageData.data)
+        width: singleState.processedImageData.width,
+        height: singleState.processedImageData.height,
+        data: Array.from(singleState.processedImageData.data)
       },
-      bgMask: Array.from(state.bgMask),
-      mergeDistance: parseInt(elements.mergeDistance.value),
-      minArea: parseInt(elements.minArea.value),
-      padding: parseInt(elements.padding.value)
+      bgMask: Array.from(singleState.bgMask),
+      mergeDistance: parseInt(singleElements.mergeDistance.value),
+      minArea: parseInt(singleElements.minArea.value),
+      padding: parseInt(singleElements.padding.value)
     }
   });
-  
+
   processTimeout = setTimeout(() => {
-    console.error('识别素材超时');
     hideLoading();
     alert('识别素材超时，请尝试调整参数或刷新页面');
   }, 30000);
 }
 
 function handleDetectedAssets(assets) {
-  console.log('收到素材识别结果:', assets.length, '个素材');
   clearTimeout(processTimeout);
-  
-  state.candidates = assets;
-  state.selectedCandidates = new Set(assets.map(a => a.id));
-  
-  elements.candidateCount.textContent = assets.length;
-  
+
+  singleState.candidates = assets;
+  singleState.selectedCandidates = new Set(assets.map(a => a.id));
+
+  singleElements.candidateCount.textContent = assets.length;
+
   renderCandidates();
-  
-  elements.exportSelectedBtn.disabled = assets.length === 0;
-  elements.exportAllBtn.disabled = assets.length === 0;
-  elements.downloadZipBtn.disabled = assets.length === 0;
-  
+
+  singleElements.exportSelectedBtn.disabled = assets.length === 0;
+  singleElements.exportAllBtn.disabled = assets.length === 0;
+  singleElements.downloadZipBtn.disabled = assets.length === 0;
+
   hideLoading();
 }
 
 function renderCandidates() {
-  elements.candidatesGrid.innerHTML = '';
-  
-  if (state.candidates.length === 0) {
-    elements.candidatesGrid.innerHTML = '<div class="empty-state"><p>未识别到候选素材</p></div>';
+  singleElements.candidatesGrid.innerHTML = '';
+
+  if (singleState.candidates.length === 0) {
+    singleElements.candidatesGrid.innerHTML = '<div class="empty-state"><p>未识别到候选素材</p></div>';
     return;
   }
-  
-  for (const candidate of state.candidates) {
+
+  for (const candidate of singleState.candidates) {
     const card = document.createElement('div');
     card.className = 'candidate-card';
     card.dataset.id = candidate.id;
-    
-    if (state.selectedCandidates.has(candidate.id)) {
+
+    if (singleState.selectedCandidates.has(candidate.id)) {
       card.classList.add('selected');
     }
-    
+
     const canvas = document.createElement('canvas');
     canvas.width = candidate.w;
     canvas.height = candidate.h;
@@ -398,7 +455,7 @@ function renderCandidates() {
       candidate.h
     );
     ctx.putImageData(imageData, 0, 0);
-    
+
     card.innerHTML = `
       <div class="candidate-preview">
         <img src="${canvas.toDataURL()}" alt="${candidate.name}">
@@ -412,38 +469,37 @@ function renderCandidates() {
         </div>
       </div>
     `;
-    
-    elements.candidatesGrid.appendChild(card);
+
+    singleElements.candidatesGrid.appendChild(card);
   }
-  
+
   document.querySelectorAll('.candidate-name-input').forEach(input => {
     input.addEventListener('change', (e) => {
       const id = parseInt(e.target.dataset.id);
-      const candidate = state.candidates.find(c => c.id === id);
+      const candidate = singleState.candidates.find(c => c.id === id);
       if (candidate) {
         candidate.name = sanitizeFileName(e.target.value);
       }
     });
   });
-  
+
   document.querySelectorAll('.btn-delete').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = parseInt(e.target.dataset.id);
       deleteCandidate(id);
     });
   });
-  
+
   document.querySelectorAll('.btn-download').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = parseInt(e.target.dataset.id);
       downloadSingleCandidate(id);
     });
   });
-  
+
   document.querySelectorAll('.candidate-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
-      
       const id = parseInt(card.dataset.id);
       toggleCandidateSelection(id);
     });
@@ -451,37 +507,34 @@ function renderCandidates() {
 }
 
 function deleteCandidate(id) {
-  state.candidates = state.candidates.filter(c => c.id !== id);
-  state.selectedCandidates.delete(id);
-  
-  elements.candidateCount.textContent = state.candidates.length;
+  singleState.candidates = singleState.candidates.filter(c => c.id !== id);
+  singleState.selectedCandidates.delete(id);
+  singleElements.candidateCount.textContent = singleState.candidates.length;
   renderCandidates();
-  
   updateExportButtons();
 }
 
 function toggleCandidateSelection(id) {
-  if (state.selectedCandidates.has(id)) {
-    state.selectedCandidates.delete(id);
+  if (singleState.selectedCandidates.has(id)) {
+    singleState.selectedCandidates.delete(id);
   } else {
-    state.selectedCandidates.add(id);
+    singleState.selectedCandidates.add(id);
   }
-  
   renderCandidates();
   updateExportButtons();
 }
 
 function updateExportButtons() {
-  const hasSelected = state.selectedCandidates.size > 0;
-  elements.exportSelectedBtn.disabled = !hasSelected;
-  elements.exportAllBtn.disabled = state.candidates.length === 0;
-  elements.downloadZipBtn.disabled = state.candidates.length === 0;
+  const hasSelected = singleState.selectedCandidates.size > 0;
+  singleElements.exportSelectedBtn.disabled = !hasSelected;
+  singleElements.exportAllBtn.disabled = singleState.candidates.length === 0;
+  singleElements.downloadZipBtn.disabled = singleState.candidates.length === 0;
 }
 
 function downloadSingleCandidate(id) {
-  const candidate = state.candidates.find(c => c.id === id);
+  const candidate = singleState.candidates.find(c => c.id === id);
   if (!candidate) return;
-  
+
   const canvas = document.createElement('canvas');
   canvas.width = candidate.w;
   canvas.height = candidate.h;
@@ -492,7 +545,7 @@ function downloadSingleCandidate(id) {
     candidate.h
   );
   ctx.putImageData(imageData, 0, 0);
-  
+
   const link = document.createElement('a');
   link.download = `${candidate.name}.png`;
   link.href = canvas.toDataURL('image/png');
@@ -500,22 +553,21 @@ function downloadSingleCandidate(id) {
 }
 
 function updatePreviewBackground() {
-  elements.previewContainer.classList.remove('dark-bg', 'light-bg');
-  
-  if (elements.darkBgToggle.checked) {
-    elements.previewContainer.classList.add('dark-bg');
-  } else if (elements.lightBgToggle.checked) {
-    elements.previewContainer.classList.add('light-bg');
+  singleElements.previewContainer.classList.remove('dark-bg', 'light-bg');
+  if (singleElements.darkBgToggle.checked) {
+    singleElements.previewContainer.classList.add('dark-bg');
+  } else if (singleElements.lightBgToggle.checked) {
+    singleElements.previewContainer.classList.add('light-bg');
   }
 }
 
 async function exportSelected() {
-  const selected = state.candidates.filter(c => state.selectedCandidates.has(c.id));
+  const selected = singleState.candidates.filter(c => singleState.selectedCandidates.has(c.id));
   await exportCandidates(selected);
 }
 
 async function exportAll() {
-  await exportCandidates(state.candidates);
+  await exportCandidates(singleState.candidates);
 }
 
 async function exportCandidates(candidates) {
@@ -523,13 +575,13 @@ async function exportCandidates(candidates) {
     alert('没有可导出的素材');
     return;
   }
-  
+
   showLoading('正在导出素材...');
-  
+
   const zip = new JSZip();
   const imagesFolder = zip.folder('images');
   const manifest = [];
-  
+
   for (const candidate of candidates) {
     const canvas = document.createElement('canvas');
     canvas.width = candidate.w;
@@ -541,12 +593,12 @@ async function exportCandidates(candidates) {
       candidate.h
     );
     ctx.putImageData(imageData, 0, 0);
-    
+
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const fileName = `${candidate.name}.png`;
-    
+
     imagesFolder.file(fileName, blob);
-    
+
     manifest.push({
       name: candidate.name,
       file: fileName,
@@ -558,25 +610,22 @@ async function exportCandidates(candidates) {
       sourceHeight: candidate.h
     });
   }
-  
+
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-  
-  const previewHtml = generatePreviewHtml(manifest);
-  zip.file('preview.html', previewHtml);
-  
+  zip.file('preview.html', generatePreviewHtml(manifest));
+
   const content = await zip.generateAsync({ type: 'blob' });
-  
+
   const link = document.createElement('a');
   link.download = 'asset-cutout-export.zip';
   link.href = URL.createObjectURL(content);
   link.click();
-  
+
   hideLoading();
 }
 
 function generatePreviewHtml(manifest) {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -584,107 +633,24 @@ function generatePreviewHtml(manifest) {
   <title>素材预览</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding: 24px;
-      background: #1a1a2e;
-      color: #e6e6e6;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 32px;
-      font-size: 28px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 24px;
-    }
-    .card {
-      background: #16213e;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid #2a2a4a;
-    }
-    .preview {
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: 
-        linear-gradient(45deg, #808080 25%, transparent 25%),
-        linear-gradient(-45deg, #808080 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #808080 75%),
-        linear-gradient(-45deg, transparent 75%, #808080 75%);
-      background-size: 20px 20px;
-      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-      background-color: #cccccc;
-    }
-    .preview img {
-      max-width: 90%;
-      max-height: 90%;
-      object-fit: contain;
-    }
-    .preview-dark {
-      background: #1a1a1a;
-    }
-    .info {
-      padding: 12px;
-    }
-    .info h3 {
-      font-size: 16px;
-      margin-bottom: 8px;
-    }
-    .info p {
-      font-size: 12px;
-      color: #b0b0b0;
-    }
-    .section-title {
-      grid-column: 1 / -1;
-      font-size: 20px;
-      margin: 32px 0 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #2a2a4a;
-    }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 24px; background: #1a1a2e; color: #e6e6e6; }
+    h1 { text-align: center; margin-bottom: 32px; font-size: 28px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 24px; }
+    .card { background: #16213e; border-radius: 8px; overflow: hidden; border: 1px solid #2a2a4a; }
+    .preview { height: 200px; display: flex; align-items: center; justify-content: center; background: linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; background-color: #cccccc; }
+    .preview img { max-width: 90%; max-height: 90%; object-fit: contain; }
+    .info { padding: 12px; }
+    .info h3 { font-size: 16px; margin-bottom: 8px; }
+    .info p { font-size: 12px; color: #b0b0b0; }
   </style>
 </head>
 <body>
   <h1>素材预览</h1>
-  
-  <h2 class="section-title">浅色背景预览</h2>
   <div class="grid">
-    ${manifest.map(item => `
-      <div class="card">
-        <div class="preview">
-          <img src="images/${item.file}" alt="${item.name}">
-        </div>
-        <div class="info">
-          <h3>${item.name}</h3>
-          <p>尺寸: ${item.width} x ${item.height}</p>
-          <p>坐标: (${item.sourceX}, ${item.sourceY})</p>
-        </div>
-      </div>
-    `).join('')}
-  </div>
-  
-  <h2 class="section-title">深色背景预览</h2>
-  <div class="grid">
-    ${manifest.map(item => `
-      <div class="card">
-        <div class="preview preview-dark">
-          <img src="images/${item.file}" alt="${item.name}">
-        </div>
-        <div class="info">
-          <h3>${item.name}</h3>
-          <p>尺寸: ${item.width} x ${item.height}</p>
-          <p>坐标: (${item.sourceX}, ${item.sourceY})</p>
-        </div>
-      </div>
-    `).join('')}
+    ${manifest.map(item => `<div class="card"><div class="preview"><img src="images/${item.file}" alt="${item.name}"></div><div class="info"><h3>${item.name}</h3><p>尺寸: ${item.width} x ${item.height}</p><p>坐标: (${item.sourceX}, ${item.sourceY})</p></div></div>`).join('')}
   </div>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 async function downloadZip() {
@@ -703,6 +669,163 @@ function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function setupBatchStepNavigation() {
+  document.querySelectorAll('.batch-step-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const step = parseInt(btn.dataset.step);
+      if (step >= 1 && step <= 4) {
+        switchBatchStep(step);
+      }
+    });
+  });
+
+  document.getElementById('to-step-2-btn')?.addEventListener('click', () => switchBatchStep(2));
+  document.getElementById('to-step-3-btn')?.addEventListener('click', () => switchBatchStep(3));
+  document.getElementById('to-step-4-btn')?.addEventListener('click', () => switchBatchStep(4));
+  document.getElementById('back-to-step-1-btn')?.addEventListener('click', () => switchBatchStep(1));
+  document.getElementById('back-to-step-2-btn')?.addEventListener('click', () => switchBatchStep(2));
+  document.getElementById('back-to-step-3-btn')?.addEventListener('click', () => switchBatchStep(3));
+
+  document.getElementById('upload-select-all-btn')?.addEventListener('click', () => {
+    selectAllFiles();
+    renderUploadQueue();
+  });
+
+  document.getElementById('upload-clear-all-btn')?.addEventListener('click', () => {
+    clearFiles();
+    renderUploadQueue();
+  });
+}
+
+function switchBatchStep(step) {
+  const { files, isProcessing } = getState();
+
+  if (step === 2 && files.filter(f => f.status === 'loaded').length === 0) {
+    showToast('请先上传图片', 'warning');
+    return;
+  }
+
+  if (step === 3 && files.filter(f => f.processResult.status === 'done').length === 0) {
+    showToast('请先完成抠图处理', 'warning');
+    return;
+  }
+
+  if (step === 4 && files.filter(f => f.processResult.status === 'done').length === 0) {
+    showToast('请先完成抠图处理', 'warning');
+    return;
+  }
+
+  if (isProcessing && step !== 2) {
+    showToast('正在处理中，请等待完成', 'warning');
+    return;
+  }
+
+  setStep(step);
+
+  document.querySelectorAll('.batch-step-panel').forEach(panel => {
+    panel.classList.remove('active');
+  });
+
+  const targetPanel = document.getElementById(`batch-step-${step}`);
+  if (targetPanel) targetPanel.classList.add('active');
+
+  document.querySelectorAll('.batch-step-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.step) === step);
+  });
+
+  if (step === 1) renderUploadQueue();
+  if (step === 2) renderProcessPanel();
+  if (step === 3) renderNamingPreview();
+  if (step === 4) renderDownloadPanel();
+}
+
+function setupBatchSubscriptions() {
+  subscribe('filesChanged', () => {
+    renderUploadQueue();
+  });
+
+  subscribe('fileUpdated', () => {
+    const { currentStep } = getState();
+    if (currentStep === 1) renderUploadQueue();
+  });
+
+  subscribe('selectionChanged', () => {
+    const { currentStep } = getState();
+    if (currentStep === 1) renderUploadQueue();
+    if (currentStep === 4) renderDownloadPanel();
+  });
+
+  subscribe('processProgress', () => {
+    const { currentStep } = getState();
+    if (currentStep === 2) renderProcessPanel();
+  });
+
+  subscribe('processComplete', () => {
+    renderProcessPanel();
+    showToast('批量抠图处理完成！', 'success');
+  });
+
+  subscribe('processCancelled', () => {
+    renderProcessPanel();
+    showToast('已取消处理', 'info');
+  });
+
+  subscribe('uploadBatchComplete', (data) => {
+    if (data.errorCount > 0) {
+      showToast(`已添加 ${data.addedCount} 个文件，${data.errorCount} 个失败`, 'warning');
+    } else if (data.addedCount > 0) {
+      showToast(`已添加 ${data.addedCount} 个文件`, 'success');
+    }
+  });
+
+  subscribe('uploadError', (data) => {
+    showToast(`${data.file}: ${data.error}`, 'error');
+  });
+
+  subscribe('downloadStart', () => {
+    const progressSection = document.getElementById('download-progress-section');
+    if (progressSection) progressSection.style.display = '';
+  });
+
+  subscribe('downloadProgress', (data) => {
+    const progressBar = document.getElementById('download-progress-bar');
+    const progressText = document.getElementById('download-progress-text');
+    if (progressBar) progressBar.style.width = data.percent + '%';
+    if (progressText) {
+      const phaseText = { packing: '打包中', compressing: '压缩中', downloading: '下载中' }[data.phase] || '处理中';
+      progressText.textContent = `${phaseText}... ${data.percent}%`;
+    }
+  });
+
+  subscribe('downloadComplete', (data) => {
+    const progressSection = document.getElementById('download-progress-section');
+    if (progressSection) progressSection.style.display = 'none';
+    showToast(`下载完成！共 ${data.total} 个文件`, 'success');
+  });
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  const icon = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' }[type] || '';
+
+  toast.innerHTML = `
+    <span class="toast-icon">${icon}</span>
+    <span class="toast-message">${message}</span>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
 await init();

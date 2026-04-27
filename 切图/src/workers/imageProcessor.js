@@ -15,12 +15,450 @@ self.onmessage = function(e) {
         console.log('Worker: 素材识别完成, 找到', assets.length, '个');
         self.postMessage({ type: 'detectAssetsResult', assets });
         break;
+      case 'irregularDetect':
+        console.log('Worker: 开始异形检测');
+        const regions = irregularDetect(data);
+        console.log('Worker: 异形检测完成, 找到', regions.length, '个区域');
+        self.postMessage({ type: 'irregularDetectResult', regions });
+        break;
+      case 'innerContourRemove':
+        console.log('Worker: 开始内轮廓抠图');
+        const updatedRegions = innerContourRemove(data);
+        self.postMessage({ type: 'innerContourRemoveResult', regions: updatedRegions });
+        break;
+      case 'trimTransparent':
+        const trimmed = trimTransparent(data);
+        self.postMessage({ type: 'trimTransparentResult', result: trimmed });
+        break;
     }
   } catch (error) {
     console.error('Worker 错误:', error);
     self.postMessage({ type: 'error', error: error.message });
   }
 };
+
+const REGION_COLORS = [
+  '#e94560','#3fb950','#58a6ff','#d29922','#bc8cff',
+  '#00bcd4','#ff6d00','#64dd17','#d500f9','#304ffe',
+  '#ff1744','#00e676','#2979ff','#ffc400','#d500f9',
+  '#18ffff','#ff9100','#76ff03','#ea80fc','#448aff',
+];
+
+function irregularDetect(data) {
+  const { imageData, bgColor, outlineColor, outlineTolerance, sensitivity, minArea, dilatePx } = data;
+  const { width, height, data: pixels } = imageData;
+  const pixelData = new Uint8ClampedArray(pixels);
+
+  const hasOutline = outlineColor !== null && outlineColor !== undefined;
+  const tol = sensitivity * 2.5;
+  const outTol = hasOutline ? (outlineTolerance || 80) * 2.5 : 0;
+
+  const mask = new Uint8Array(width * height);
+
+  for (let i = 0; i < width * height; i++) {
+    const pi = i * 4;
+    const r = pixelData[pi], g = pixelData[pi + 1], b = pixelData[pi + 2];
+
+    if (hasOutline) {
+      const odr = r - outlineColor.r, odg = g - outlineColor.g, odb = b - outlineColor.b;
+      const oDist = Math.sqrt(odr * odr + odg * odg + odb * odb);
+      if (oDist <= outTol) { mask[i] = 2; continue; }
+    }
+
+    const bdr = r - bgColor.r, bdg = g - bgColor.g, bdb = b - bgColor.b;
+    const bDist = Math.sqrt(bdr * bdr + bdg * bdg + bdb * bdb);
+    mask[i] = bDist <= tol ? 3 : 1;
+  }
+
+  for (let i = 0; i < width * height; i++) {
+    if (mask[i] === 0) mask[i] = 3;
+  }
+
+  const bgQueue = [];
+  let bgHead = 0;
+  for (let x = 0; x < width; x++) {
+    if (mask[x] === 3) { mask[x] = 0; bgQueue.push(x, 0); }
+    const bIdx = (height - 1) * width + x;
+    if (mask[bIdx] === 3) { mask[bIdx] = 0; bgQueue.push(x, height - 1); }
+  }
+  for (let y = 1; y < height - 1; y++) {
+    const lIdx = y * width;
+    if (mask[lIdx] === 3) { mask[lIdx] = 0; bgQueue.push(0, y); }
+    const rIdx = y * width + width - 1;
+    if (mask[rIdx] === 3) { mask[rIdx] = 0; bgQueue.push(width - 1, y); }
+  }
+
+  const BG_DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+  while (bgHead < bgQueue.length) {
+    const cx = bgQueue[bgHead++];
+    const cy = bgQueue[bgHead++];
+    for (let d = 0; d < 4; d++) {
+      const nx = cx + BG_DIRS[d][0], ny = cy + BG_DIRS[d][1];
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height && mask[ny * width + nx] === 3) {
+        mask[ny * width + nx] = 0;
+        bgQueue.push(nx, ny);
+      }
+    }
+  }
+
+  for (let i = 0; i < width * height; i++) {
+    if (mask[i] >= 1) mask[i] = 1;
+  }
+
+  if (dilatePx > 0) {
+    for (let pass = 0; pass < dilatePx; pass++) {
+      const dm = new Uint8Array(width * height);
+      dm.set(mask);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (mask[y * width + x] === 1) continue;
+          if ((x > 0 && mask[y * width + x - 1] === 1) || (x < width - 1 && mask[y * width + x + 1] === 1) ||
+              (y > 0 && mask[(y - 1) * width + x] === 1) || (y < height - 1 && mask[(y + 1) * width + x] === 1)) {
+            dm[y * width + x] = 1;
+          }
+        }
+      }
+      mask.set(dm);
+    }
+  } else if (dilatePx < 0) {
+    const erodeN = -dilatePx;
+    for (let pass = 0; pass < erodeN; pass++) {
+      const em = new Uint8Array(width * height);
+      em.set(mask);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (mask[y * width + x] === 0) continue;
+          if ((x === 0 || mask[y * width + x - 1] === 0) || (x === width - 1 || mask[y * width + x + 1] === 0) ||
+              (y === 0 || mask[(y - 1) * width + x] === 0) || (y === height - 1 || mask[(y + 1) * width + x] === 0)) {
+            em[y * width + x] = 0;
+          }
+        }
+      }
+      mask.set(em);
+    }
+  }
+
+  const closedMask = new Uint8Array(width * height);
+  closedMask.set(mask);
+  const dilated = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (closedMask[y * width + x] === 1) { dilated[y * width + x] = 1; continue; }
+      let found = false;
+      for (let dy = -1; dy <= 1 && !found; dy++) {
+        for (let dx = -1; dx <= 1 && !found; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height && closedMask[ny * width + nx] === 1) found = true;
+        }
+      }
+      dilated[y * width + x] = found ? 1 : 0;
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (dilated[y * width + x] === 0) continue;
+      let allFg = true;
+      for (let dy = -1; dy <= 1 && allFg; dy++) {
+        for (let dx = -1; dx <= 1 && allFg; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height && dilated[ny * width + nx] === 0) allFg = false;
+        }
+      }
+      closedMask[y * width + x] = allFg ? 1 : 0;
+    }
+  }
+
+  const regions = [];
+  let regionId = 0;
+  const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
+  while (true) {
+    let startX = -1, startY = -1;
+    outer: for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (closedMask[y * width + x] === 1) { startX = x; startY = y; break outer; }
+      }
+    }
+    if (startX === -1) break;
+
+    const regionPixels = [];
+    const queue = [startX, startY];
+    let head = 0;
+    closedMask[startY * width + startX] = 2;
+    let minX = startX, maxX = startX, minY = startY, maxY = startY;
+
+    while (head < queue.length) {
+      const cx = queue[head++];
+      const cy = queue[head++];
+      regionPixels.push([cx, cy]);
+      if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
+      if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
+
+      for (let d = 0; d < 8; d++) {
+        const nx = cx + DIRS[d][0], ny = cy + DIRS[d][1];
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height && closedMask[ny * width + nx] === 1) {
+          closedMask[ny * width + nx] = 2;
+          queue.push(nx, ny);
+        }
+      }
+    }
+
+    const exactPixels = [];
+    const pixelSet = new Uint8Array(width * height);
+    regionPixels.forEach(([px, py]) => { pixelSet[py * width + px] = 1; });
+
+    const expandQueue = [];
+    let expandHead = 0;
+    const visited = new Uint8Array(width * height);
+    regionPixels.forEach(([px, py]) => { visited[py * width + px] = 1; });
+
+    regionPixels.forEach(([px, py]) => {
+      if (mask[py * width + px] === 1) {
+        exactPixels.push([px, py]);
+      } else {
+        expandQueue.push(px, py);
+      }
+    });
+
+    while (expandHead < expandQueue.length) {
+      const cx = expandQueue[expandHead++];
+      const cy = expandQueue[expandHead++];
+      for (let d = 0; d < 8; d++) {
+        const nx = cx + DIRS[d][0], ny = cy + DIRS[d][1];
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited[ny * width + nx]) {
+          visited[ny * width + nx] = 1;
+          if (mask[ny * width + nx] === 1) {
+            exactPixels.push([nx, ny]);
+            expandQueue.push(nx, ny);
+          }
+        }
+      }
+    }
+
+    const area = exactPixels.length;
+
+    if (area >= minArea) {
+      const exactPixelSet = new Uint8Array(width * height);
+      exactPixels.forEach(([px, py]) => { exactPixelSet[py * width + px] = 1; });
+
+      let eMinX = width, eMaxX = 0, eMinY = height, eMaxY = 0;
+      exactPixels.forEach(([px, py]) => {
+        if (px < eMinX) eMinX = px; if (px > eMaxX) eMaxX = px;
+        if (py < eMinY) eMinY = py; if (py > eMaxY) eMaxY = py;
+      });
+
+      regions.push({
+        id: regionId++,
+        pixels: exactPixels,
+        pixelSet: exactPixelSet,
+        bounds: { x: eMinX, y: eMinY, w: eMaxX - eMinX + 1, h: eMaxY - eMinY + 1 },
+        area: area,
+        color: REGION_COLORS[regions.length % REGION_COLORS.length],
+      });
+    }
+
+    regionPixels.forEach(([px, py]) => { closedMask[py * width + px] = 0; });
+    exactPixels.forEach(([px, py]) => { mask[py * width + px] = 0; });
+  }
+
+  return regions;
+}
+
+function innerContourRemove(data) {
+  const { imageData, regions, selectedIndices, innerBgColor, innerOutlineColor, innerTolerance, innerDilatePx } = data;
+  const { width, height, data: pixels } = imageData;
+  const pixelData = new Uint8ClampedArray(pixels);
+  const hasInnerOutline = innerOutlineColor !== null && innerOutlineColor !== undefined;
+  const innerTol = innerTolerance * 2.5;
+  const updatedRegions = [];
+
+  for (let ri = 0; ri < regions.length; ri++) {
+    const region = regions[ri];
+    const updatedRegion = { ...region, pixels: [...region.pixels.map(p => [...p])] };
+
+    if (!selectedIndices.includes(ri)) {
+      updatedRegions.push(updatedRegion);
+      continue;
+    }
+
+    const b = region.bounds;
+    const localW = b.w, localH = b.h;
+    const localMask = new Uint8Array(localW * localH);
+
+    region.pixels.forEach(([px, py]) => {
+      localMask[(py - b.y) * localW + (px - b.x)] = 1;
+    });
+
+    for (let ly = 0; ly < localH; ly++) {
+      for (let lx = 0; lx < localW; lx++) {
+        if (localMask[ly * localW + lx] !== 1) continue;
+        const px = lx + b.x, py = ly + b.y;
+        const pi = (py * width + px) * 4;
+        const r = pixelData[pi], g = pixelData[pi + 1], bl = pixelData[pi + 2];
+
+        if (hasInnerOutline) {
+          const odr = r - innerOutlineColor.r, odg = g - innerOutlineColor.g, odb = bl - innerOutlineColor.b;
+          const oDist = Math.sqrt(odr * odr + odg * odg + odb * odb);
+          if (oDist <= innerTol * 0.8) { localMask[ly * localW + lx] = 3; continue; }
+        }
+
+        const bdr = r - innerBgColor.r, bdg = g - innerBgColor.g, bdb = bl - innerBgColor.b;
+        const bDist = Math.sqrt(bdr * bdr + bdg * bdg + bdb * bdb);
+        if (bDist <= innerTol) { localMask[ly * localW + lx] = 2; }
+      }
+    }
+
+    const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+    const queue = [];
+    let head = 0;
+
+    for (let lx = 0; lx < localW; lx++) {
+      if (localMask[lx] === 2) { localMask[lx] = 4; queue.push(lx, 0); }
+      const bIdx = (localH - 1) * localW + lx;
+      if (localMask[bIdx] === 2) { localMask[bIdx] = 4; queue.push(lx, localH - 1); }
+    }
+    for (let ly = 1; ly < localH - 1; ly++) {
+      if (localMask[ly * localW] === 2) { localMask[ly * localW] = 4; queue.push(0, ly); }
+      const rIdx = ly * localW + localW - 1;
+      if (localMask[rIdx] === 2) { localMask[rIdx] = 4; queue.push(localW - 1, ly); }
+    }
+
+    while (head < queue.length) {
+      const cx = queue[head++];
+      const cy = queue[head++];
+      for (let d = 0; d < 4; d++) {
+        const nx = cx + DIRS[d][0], ny = cy + DIRS[d][1];
+        if (nx >= 0 && nx < localW && ny >= 0 && ny < localH && localMask[ny * localW + nx] === 2) {
+          localMask[ny * localW + nx] = 4;
+          queue.push(nx, ny);
+        }
+      }
+    }
+
+    const newPixels = [];
+    region.pixels.forEach(([px, py]) => {
+      const lx = px - b.x, ly = py - b.y;
+      const val = localMask[ly * localW + lx];
+      if (val !== 2 && val !== 4) { newPixels.push([px, py]); }
+    });
+
+    if (innerDilatePx !== 0 && newPixels.length > 0) {
+      const ib = b;
+      const lm = new Uint8Array(localW * localH);
+      newPixels.forEach(([px, py]) => { lm[(py - ib.y) * localW + (px - ib.x)] = 1; });
+
+      if (innerDilatePx > 0) {
+        for (let pass = 0; pass < innerDilatePx; pass++) {
+          const dm = new Uint8Array(localW * localH);
+          dm.set(lm);
+          for (let ly = 0; ly < localH; ly++) {
+            for (let lx = 0; lx < localW; lx++) {
+              if (lm[ly * localW + lx] === 1) continue;
+              if ((lx > 0 && lm[ly * localW + lx - 1] === 1) || (lx < localW - 1 && lm[ly * localW + lx + 1] === 1) ||
+                  (ly > 0 && lm[(ly - 1) * localW + lx] === 1) || (ly < localH - 1 && lm[(ly + 1) * localW + lx] === 1)) {
+                dm[ly * localW + lx] = 1;
+              }
+            }
+          }
+          lm.set(dm);
+        }
+      } else {
+        const erodeN = -innerDilatePx;
+        for (let pass = 0; pass < erodeN; pass++) {
+          const em = new Uint8Array(localW * localH);
+          em.set(lm);
+          for (let ly = 0; ly < localH; ly++) {
+            for (let lx = 0; lx < localW; lx++) {
+              if (lm[ly * localW + lx] === 0) continue;
+              if ((lx === 0 || lm[ly * localW + lx - 1] === 0) || (lx === localW - 1 || lm[ly * localW + lx + 1] === 0) ||
+                  (ly === 0 || lm[(ly - 1) * localW + lx] === 0) || (ly === localH - 1 || lm[(ly + 1) * localW + lx] === 0)) {
+                em[ly * localW + lx] = 0;
+              }
+            }
+          }
+          lm.set(em);
+        }
+      }
+
+      const finalPixels = [];
+      for (let ly = 0; ly < localH; ly++) {
+        for (let lx = 0; lx < localW; lx++) {
+          if (lm[ly * localW + lx] === 1) finalPixels.push([lx + ib.x, ly + ib.y]);
+        }
+      }
+
+      const fps = new Uint8Array(width * height);
+      finalPixels.forEach(([px, py]) => { fps[py * width + px] = 1; });
+      let eMinX = width, eMaxX = 0, eMinY = height, eMaxY = 0;
+      finalPixels.forEach(([px, py]) => {
+        if (px < eMinX) eMinX = px; if (px > eMaxX) eMaxX = px;
+        if (py < eMinY) eMinY = py; if (py > eMaxY) eMaxY = py;
+      });
+      updatedRegion.pixels = finalPixels;
+      updatedRegion.pixelSet = fps;
+      updatedRegion.bounds = { x: eMinX, y: eMinY, w: eMaxX - eMinX + 1, h: eMaxY - eMinY + 1 };
+      updatedRegion.area = finalPixels.length;
+    } else {
+      updatedRegion.pixels = newPixels;
+      const ps = new Uint8Array(width * height);
+      newPixels.forEach(([px, py]) => { ps[py * width + px] = 1; });
+      if (newPixels.length > 0) {
+        let eMinX = width, eMaxX = 0, eMinY = height, eMaxY = 0;
+        newPixels.forEach(([px, py]) => {
+          if (px < eMinX) eMinX = px; if (px > eMaxX) eMaxX = px;
+          if (py < eMinY) eMinY = py; if (py > eMaxY) eMaxY = py;
+        });
+        updatedRegion.pixelSet = ps;
+        updatedRegion.bounds = { x: eMinX, y: eMinY, w: eMaxX - eMinX + 1, h: eMaxY - eMinY + 1 };
+      }
+      updatedRegion.area = newPixels.length;
+    }
+
+    updatedRegions.push(updatedRegion);
+  }
+
+  return updatedRegions;
+}
+
+function trimTransparent(data) {
+  const { imageData } = data;
+  const { width, height, data: pixels } = imageData;
+  const pixelData = new Uint8ClampedArray(pixels);
+
+  let top = height, left = width, right = 0, bottom = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (pixelData[(y * width + x) * 4 + 3] > 0) {
+        if (y < top) top = y; if (y > bottom) bottom = y;
+        if (x < left) left = x; if (x > right) right = x;
+      }
+    }
+  }
+
+  if (top >= bottom || left >= right) {
+    return { imageData: data.imageData, bounds: { x: 0, y: 0, w: width, h: height } };
+  }
+
+  const w = right - left + 1;
+  const h = bottom - top + 1;
+  const trimmed = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const srcIdx = ((y + top) * width + (x + left)) * 4;
+      const dstIdx = (y * w + x) * 4;
+      trimmed[dstIdx] = pixelData[srcIdx];
+      trimmed[dstIdx + 1] = pixelData[srcIdx + 1];
+      trimmed[dstIdx + 2] = pixelData[srcIdx + 2];
+      trimmed[dstIdx + 3] = pixelData[srcIdx + 3];
+    }
+  }
+
+  return {
+    imageData: { width: w, height: h, data: Array.from(trimmed) },
+    bounds: { x: left, y: top, w, h },
+  };
+}
 
 function processImage({ imageData, bgMode, tolerance, edgeRemoval, selectedColor }) {
   const { width, height, data } = imageData;
