@@ -130,6 +130,7 @@ function cacheSingleElements() {
   singleElements.replaceBtn = document.getElementById('replace-btn');
   singleElements.uploadArea = document.getElementById('upload-area');
   singleElements.originalPreview = document.getElementById('original-preview');
+  singleElements.clearUploadBtn = document.getElementById('clear-upload-btn');
   singleElements.fileName = document.getElementById('file-name');
   singleElements.fileSize = document.getElementById('file-size');
   singleElements.fileDimension = document.getElementById('file-dimension');
@@ -276,6 +277,14 @@ function setupSingleEventListeners() {
   if (el.exportSelectedBtn) el.exportSelectedBtn.addEventListener('click', exportSelected);
   if (el.exportAllBtn) el.exportAllBtn.addEventListener('click', exportAll);
   if (el.downloadZipBtn) el.downloadZipBtn.addEventListener('click', downloadZip);
+
+  // 清除上传图片按钮
+  if (el.clearUploadBtn) {
+    el.clearUploadBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearUpload();
+    });
+  }
 }
 
 function setupModeSwitch() {
@@ -363,6 +372,7 @@ function handleFile(file) {
 
       if (singleElements.replaceBtn) singleElements.replaceBtn.disabled = false;
       if (singleElements.processBtn) singleElements.processBtn.disabled = false;
+      if (singleElements.clearUploadBtn) singleElements.clearUploadBtn.hidden = false;
 
       // 立即获取像素数据，供取色使用
       const canvas = document.createElement('canvas');
@@ -983,6 +993,58 @@ function resetIrregularState() {
   if (innerStatus) innerStatus.textContent = '未取色';
   if (innerOutlineStatus) innerOutlineStatus.textContent = '未取色';
   if (innerSection) innerSection.style.display = 'none';
+}
+
+function clearUpload() {
+  // 重置状态
+  singleState.originalImage = null;
+  singleState.originalImageData = null;
+  singleState.processedImageData = null;
+  singleState.bgMask = null;
+  singleState.candidates = [];
+  singleState.selectedCandidates = new Set();
+  singleState.fileName = '';
+  singleState.fileWidth = 0;
+  singleState.fileHeight = 0;
+  singleState.selectedBgColor = null;
+  resetIrregularState();
+
+  // 重置 UI
+  if (singleElements.originalPreview) {
+    singleElements.originalPreview.src = '';
+    singleElements.originalPreview.hidden = true;
+  }
+  if (singleElements.uploadArea) {
+    const placeholder = singleElements.uploadArea.querySelector('.upload-placeholder');
+    if (placeholder) placeholder.style.display = '';
+  }
+  if (singleElements.clearUploadBtn) {
+    singleElements.clearUploadBtn.hidden = true;
+  }
+  if (singleElements.fileName) singleElements.fileName.textContent = '';
+  if (singleElements.fileSize) singleElements.fileSize.textContent = '';
+  if (singleElements.fileDimension) singleElements.fileDimension.textContent = '';
+  if (singleElements.processBtn) singleElements.processBtn.disabled = true;
+  if (singleElements.transparentPreview) {
+    singleElements.transparentPreview.src = '';
+    singleElements.transparentPreview.hidden = true;
+  }
+
+  // 清空候选素材
+  singleElements.candidateCount.textContent = '0';
+  singleElements.candidatesGrid.innerHTML = `
+    <div class="empty-state">
+      <div class="icon">🖼️</div>
+      <p>上传并处理图片后将显示候选素材</p>
+    </div>
+  `;
+
+  // 禁用导出按钮
+  if (singleElements.exportSelectedBtn) singleElements.exportSelectedBtn.disabled = true;
+  if (singleElements.exportAllBtn) singleElements.exportAllBtn.disabled = true;
+  if (singleElements.downloadZipBtn) singleElements.downloadZipBtn.disabled = true;
+
+  showToast('图片已清除');
 }
 
 function rgbToHex(r, g, b) {
