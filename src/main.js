@@ -358,6 +358,16 @@ function handleFile(file) {
 
       singleElements.replaceBtn.disabled = false;
       singleElements.processBtn.disabled = false;
+
+      // 立即获取像素数据，供取色使用
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      singleState.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      showToast('图片上传成功，请点击取色');
     };
     img.src = e.target.result;
   };
