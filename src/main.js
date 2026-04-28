@@ -356,8 +356,8 @@ function handleFile(file) {
       singleElements.fileSize.textContent = formatFileSize(file.size);
       singleElements.fileDimension.textContent = `${img.width} x ${img.height}`;
 
-      singleElements.replaceBtn.disabled = false;
-      singleElements.processBtn.disabled = false;
+      if (singleElements.replaceBtn) singleElements.replaceBtn.disabled = false;
+      if (singleElements.processBtn) singleElements.processBtn.disabled = false;
 
       // 立即获取像素数据，供取色使用
       const canvas = document.createElement('canvas');
