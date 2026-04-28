@@ -354,6 +354,26 @@ function setupModeSwitch() {
       });
     });
   });
+
+  // 折叠/展开功能
+  document.querySelectorAll('.collapsible-title').forEach(title => {
+    title.addEventListener('click', () => {
+      const targetId = title.dataset.target;
+      const content = document.getElementById(targetId);
+      if (content) {
+        content.classList.toggle('collapsed');
+        title.classList.toggle('collapsed');
+      }
+    });
+  });
+
+  // 默认收起所有区域
+  document.querySelectorAll('.collapsible-content').forEach(content => {
+    content.classList.add('collapsed');
+    const targetId = content.id;
+    const title = document.querySelector(`.collapsible-title[data-target="${targetId}"]`);
+    if (title) title.classList.add('collapsed');
+  });
 }
 
 function handleDragOver(e) {
@@ -1354,14 +1374,6 @@ function generatePreviewHtml(manifest) {
 
 async function downloadZip() {
   await exportAll();
-}
-
-function sanitizeFileName(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'unnamed';
 }
 
 function formatFileSize(bytes) {

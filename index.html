@@ -48,7 +48,13 @@
           </div>
 
           <div class="controls">
-            <div class="section"><div class="section-title">抠图设置</div></div>
+            <div class="section collapsible-section">
+              <div class="section-title collapsible-title" data-target="cutout-settings">
+                <span class="collapse-icon">▼</span>
+                抠图设置
+              </div>
+            </div>
+            <div class="collapsible-content" id="cutout-settings">
 
             <div class="control-group">
               <label for="bg-mode">
@@ -104,7 +110,15 @@
                 <small class="hint">0=关闭, 1=轻度, 2=中度, 3=强度</small>
               </div>
 
-              <div class="section" style="margin-top:12px"><div class="section-title">素材识别</div></div>
+            </div>
+
+            <div class="section collapsible-section" style="margin-top:12px">
+              <div class="section-title collapsible-title" data-target="asset-settings">
+                <span class="collapse-icon">▼</span>
+                素材识别
+              </div>
+            </div>
+            <div class="collapsible-content" id="asset-settings">
 
               <div class="control-group">
                 <label for="merge-distance">
@@ -236,7 +250,13 @@
               <span class="tooltip-icon" title="去除素材四周的透明像素&#10;使素材紧凑&#10;取消勾选保留原始尺寸">?</span>
             </label>
 
-            <div class="section" style="margin-top:16px"><div class="section-title">数据导出</div></div>
+            <div class="section collapsible-section" style="margin-top:16px">
+              <div class="section-title collapsible-title" data-target="export-settings">
+                <span class="collapse-icon">▼</span>
+                数据导出
+              </div>
+            </div>
+            <div class="collapsible-content" id="export-settings">
             <div class="control-group">
               <label class="checkbox-row">
                 <input type="checkbox" id="export-json-hash" checked>
