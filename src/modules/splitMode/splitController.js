@@ -116,7 +116,7 @@ function setupSplitEvents() {
 function enableColorPick(type) {
   splitState.irColorPickMode = type;
   overlayCanvas.style.cursor = 'crosshair';
-  showToast('点击图片上的对应区域取色');
+  showToast('点击图片上的对应区域取色', 'info');
 }
 
 function handleOverlayMouseDown(e) {
@@ -160,12 +160,11 @@ function handleOverlayMouseDown(e) {
     }
   }
 
-  splitState.selectedBox = -1;
-  splitState.dragging = true; splitState.dragType = 'create';
-  splitState.dragStart = { x: mx, y: my };
-  splitState.boxes.push({ x: mx / s, y: my / s, w: 0, h: 0 });
+  const newBox = { x: Math.floor(mx / s), y: Math.floor(my / s), w: 0, h: 0 };
+  splitState.boxes.push(newBox);
   splitState.selectedBox = splitState.boxes.length - 1;
-  drawOverlay();
+  splitState.dragging = true; splitState.dragType = 'create';
+  splitState.dragStart = { x: mx, y: my }; splitState.dragBoxStart = { ...newBox };
 }
 
 function handleOverlayMouseMove(e) {
@@ -239,7 +238,7 @@ function handleColorPick(mx, my, s) {
     document.getElementById('inner-outline-color').value = hex;
     document.getElementById('inner-outline-color-hex').textContent = hex.toUpperCase();
   }
-  showToast('已取色: ' + hex.toUpperCase());
+  showToast('已取色: ' + hex.toUpperCase(), 'success');
 }
 
 function handleIrregularClick(mx, my, s) {
