@@ -4,6 +4,8 @@ import { initUploadManager, handleFiles, renderUploadQueue, deleteFile as delete
 import { initProcessManager, startBatchProcess, cancelBatchProcess, renderProcessPanel } from './modules/processManager.js';
 import { initNamingManager, renderNamingPreview } from './modules/namingManager.js';
 import { initDownloadManager, startBatchDownload, renderDownloadPanel } from './modules/downloadManager.js';
+import { initSplitMode } from './modules/splitMode/splitController.js';
+import { initMergeMode } from './modules/mergeMode/mergeController.js';
 
 let currentMode = 'single';
 
@@ -122,6 +124,9 @@ async function init() {
   initDownloadManager();
   setupBatchStepNavigation();
   setupBatchSubscriptions();
+
+  initSplitMode(worker);
+  initMergeMode();
 }
 
 function cacheSingleElements() {
