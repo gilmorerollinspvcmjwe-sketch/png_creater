@@ -51,7 +51,10 @@
             <div class="section"><div class="section-title">抠图设置</div></div>
 
             <div class="control-group">
-              <label for="bg-mode">背景模式</label>
+              <label for="bg-mode">
+                背景模式
+                <span class="tooltip-icon" title="自动：自动检测背景色&#10;白底：白色背景抠图&#10;纯色：手动取色抠图&#10;棋盘格：透明/半透明背景&#10;保留透明：不处理透明通道&#10;异形抠图：复杂背景精确抠图">?</span>
+              </label>
               <select id="bg-mode">
                 <option value="auto">自动</option>
                 <option value="white">白底抠图</option>
@@ -65,22 +68,38 @@
             <!-- 普通模式控件 -->
             <div id="normal-mode-controls">
               <div class="control-group">
-                <label for="tolerance">容差 <span class="range-val" id="tolerance-value">80</span></label>
+                <label for="tolerance">
+                  容差
+                  <span class="tooltip-icon" title="背景色识别范围&#10;值越大，更多相近颜色被识别为背景&#10;值越小，抠图越精确但可能有残留">?</span>
+                  <span class="range-val" id="tolerance-value">80</span>
+                </label>
                 <input type="range" id="tolerance" min="0" max="300" value="80">
               </div>
 
               <div class="control-group">
-                <label for="edge-removal">去边强度 <span class="range-val" id="edge-removal-value">15</span></label>
+                <label for="edge-removal">
+                  去边强度
+                  <span class="tooltip-icon" title="去除素材边缘的背景色残留&#10;值越大，去边效果越明显&#10;但可能影响素材边缘细节">?</span>
+                  <span class="range-val" id="edge-removal-value">15</span>
+                </label>
                 <input type="range" id="edge-removal" min="0" max="50" value="15">
               </div>
 
               <div class="control-group">
-                <label for="dilate-erode">膨胀/腐蚀 <span class="range-val" id="dilate-erode-value">0</span></label>
+                <label for="dilate-erode">
+                  膨胀/腐蚀
+                  <span class="tooltip-icon" title="调整素材边缘大小&#10;正值：向外膨胀，扩大素材&#10;负值：向内腐蚀，缩小素材&#10;0：不处理">?</span>
+                  <span class="range-val" id="dilate-erode-value">0</span>
+                </label>
                 <input type="range" id="dilate-erode" min="-5" max="10" value="0">
               </div>
 
               <div class="control-group">
-                <label for="edge-smooth">边缘平滑 <span class="range-val" id="edge-smooth-value">0</span></label>
+                <label for="edge-smooth">
+                  边缘平滑
+                  <span class="tooltip-icon" title="让素材边缘更柔和&#10;0：关闭（硬边缘）&#10;1：轻度平滑&#10;2：中度平滑&#10;3：强度平滑（可能丢失细节）">?</span>
+                  <span class="range-val" id="edge-smooth-value">0</span>
+                </label>
                 <input type="range" id="edge-smooth" min="0" max="3" value="0">
                 <small class="hint">0=关闭, 1=轻度, 2=中度, 3=强度</small>
               </div>
@@ -88,17 +107,29 @@
               <div class="section" style="margin-top:12px"><div class="section-title">素材识别</div></div>
 
               <div class="control-group">
-                <label for="merge-distance">合并距离 <span class="range-val" id="merge-distance-value">24</span></label>
+                <label for="merge-distance">
+                  合并距离
+                  <span class="tooltip-icon" title="相近素材合并为一个的阈值&#10;值越大，越容易把碎片合并&#10;但可能把相邻素材错误合并&#10;值=0：不合并">?</span>
+                  <span class="range-val" id="merge-distance-value">24</span>
+                </label>
                 <input type="range" id="merge-distance" min="0" max="64" value="24">
               </div>
 
               <div class="control-group">
-                <label for="min-area">最小面积 <span class="range-val" id="min-area-value">1000</span></label>
+                <label for="min-area">
+                  最小面积
+                  <span class="tooltip-icon" title="忽略小于此面积的碎片&#10;单位：像素&#10;过滤噪点和小碎块">?</span>
+                  <span class="range-val" id="min-area-value">1000</span>
+                </label>
                 <input type="range" id="min-area" min="100" max="5000" value="1000" step="100">
               </div>
 
               <div class="control-group">
-                <label for="padding">安全边距 <span class="range-val" id="padding-value">12</span></label>
+                <label for="padding">
+                  安全边距
+                  <span class="tooltip-icon" title="素材边界向外扩展的像素数&#10;防止边缘像素被裁剪掉&#10;建议值：8-16">?</span>
+                  <span class="range-val" id="padding-value">12</span>
+                </label>
                 <input type="range" id="padding" min="0" max="32" value="12">
               </div>
             </div>
@@ -190,26 +221,37 @@
               <button id="color-picker-btn" class="btn btn-secondary btn-full">🧪 点击取色</button>
             </div>
             <div class="control-group" style="margin-top:8px">
-              <label for="output-format">输出格式</label>
+              <label for="output-format">
+                输出格式
+                <span class="tooltip-icon" title="PNG：无损透明，文件较大&#10;WebP：高压缩率，文件较小&#10;建议使用 PNG 保证质量">?</span>
+              </label>
               <select id="output-format">
                 <option value="png">PNG (无损)</option>
                 <option value="webp">WebP</option>
               </select>
             </div>
             <label class="checkbox-row" style="margin-top:4px">
-              <input type="checkbox" id="trim-transparent" checked> 裁剪透明边缘
+              <input type="checkbox" id="trim-transparent" checked>
+              裁剪透明边缘
+              <span class="tooltip-icon" title="去除素材四周的透明像素&#10;使素材紧凑&#10;取消勾选保留原始尺寸">?</span>
             </label>
 
             <div class="section" style="margin-top:16px"><div class="section-title">数据导出</div></div>
             <div class="control-group">
               <label class="checkbox-row">
-                <input type="checkbox" id="export-json-hash" checked> TexturePacker JSON (Hash)
+                <input type="checkbox" id="export-json-hash" checked>
+                TexturePacker JSON (Hash)
+                <span class="tooltip-icon" title="Unity/Cocos2d 常用格式&#10;帧数据以文件名为 key&#10;适合程序化加载">?</span>
               </label>
               <label class="checkbox-row">
-                <input type="checkbox" id="export-json-array"> TexturePacker JSON (Array)
+                <input type="checkbox" id="export-json-array">
+                TexturePacker JSON (Array)
+                <span class="tooltip-icon" title="Phaser 常用格式&#10;帧数据以数组形式存储&#10;适合需要遍历的场景">?</span>
               </label>
               <label class="checkbox-row">
-                <input type="checkbox" id="export-css"> CSS Sprite
+                <input type="checkbox" id="export-css">
+                CSS Sprite
+                <span class="tooltip-icon" title="生成 CSS 背景定位代码&#10;适合 Web 开发&#10;直接使用 class 引用素材">?</span>
               </label>
             </div>
           </div>
