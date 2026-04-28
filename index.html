@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏 UI 素材自动抠图工具</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <h1>游戏 UI 素材自动抠图</h1>
+      <div class="header-info">
+        <span id="file-name">未上传图片</span>
+        <span id="file-size"></span>
+        <span id="file-dimension"></span>
+      </div>
+      <div class="header-actions">
+        <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" hidden>
+        <button id="upload-btn" class="btn btn-primary">上传图片</button>
+        <button id="replace-btn" class="btn btn-secondary" disabled>替换图片</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="left-panel">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-placeholder">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p>点击或拖拽上传图片</p>
+            <p class="upload-hint">支持 PNG、JPG、WEBP 格式</p>
+          </div>
+          <img id="original-preview" class="original-preview" hidden>
+        </div>
+
+        <div class="controls">
+          <div class="control-group">
+            <label for="bg-mode">背景模式</label>
+            <select id="bg-mode">
+              <option value="auto">自动</option>
+              <option value="white">白底抠图</option>
+              <option value="solid">纯色底抠图</option>
+              <option value="checkerboard">棋盘格抠图</option>
+              <option value="keep-transparent">保留透明</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="tolerance">容差: <span id="tolerance-value">80</span></label>
+            <input type="range" id="tolerance" min="0" max="300" value="80">
+          </div>
+
+          <div class="control-group">
+            <label for="edge-removal">去边强度: <span id="edge-removal-value">15</span></label>
+            <input type="range" id="edge-removal" min="0" max="50" value="15">
+          </div>
+
+          <div class="control-group">
+            <label for="merge-distance">合并距离: <span id="merge-distance-value">24</span>px</label>
+            <input type="range" id="merge-distance" min="0" max="64" value="24">
+          </div>
+
+          <div class="control-group">
+            <label for="min-area">最小面积: <span id="min-area-value">1000</span>px</label>
+            <input type="range" id="min-area" min="100" max="5000" value="1000" step="100">
+          </div>
+
+          <div class="control-group">
+            <label for="padding">安全边距: <span id="padding-value">12</span>px</label>
+            <input type="range" id="padding" min="0" max="32" value="12">
+          </div>
+
+          <div class="control-actions">
+            <button id="process-btn" class="btn btn-primary" disabled>开始抠图</button>
+          </div>
+          <div class="control-actions">
+            <button id="color-picker-btn" class="btn btn-secondary">点击背景取色</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="right-panel">
+        <div class="preview-section">
+          <div class="preview-controls">
+            <label class="checkbox-label">
+              <input type="checkbox" id="dark-bg-toggle">
+              深色背景预览
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="light-bg-toggle" checked>
+              浅色背景预览
+            </label>
+          </div>
+          <div class="preview-container" id="preview-container">
+            <img id="transparent-preview" class="transparent-preview" hidden>
+          </div>
+        </div>
+
+        <div class="candidates-section">
+          <h3>候选素材 (<span id="candidate-count">0</span>)</h3>
+          <div class="candidates-grid" id="candidates-grid">
+            <div class="empty-state">
+              <p>上传并处理图片后将显示候选素材</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-actions">
+        <button id="export-selected-btn" class="btn btn-secondary" disabled>导出选中</button>
+        <button id="export-all-btn" class="btn btn-primary" disabled>导出全部</button>
+        <button id="download-zip-btn" class="btn btn-primary" disabled>下载 ZIP</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay" hidden>
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p id="loading-text">处理中...</p>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
