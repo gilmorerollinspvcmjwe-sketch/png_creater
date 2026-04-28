@@ -142,34 +142,73 @@ function processSingleFile(fileItem, settings, preset) {
       resolve();
     }, 60000);
 
-    worker.onmessage = function(e) {
+    // 步骤 1: 去背景
+    worker.onmessage = function handleProcessResult(e) {
       clearTimeout(timeout);
-      const { type, result, error } = e.data;
+      const { type, result, assets, error } = e.data;
 
       if (type === 'processImageResult' && result) {
+        // 去背景完成，继续调用 detectAssets 拆分素材
         const newImageData = new ImageData(
           new Uint8ClampedArray(result.imageData.data),
           result.imageData.width,
           result.imageData.height
         );
         const bgMask = new Uint8Array(result.bgMask);
-        const previewDataURL = imageDataToDataURL(newImageData);
 
-        updateFile(fileItem.id, {
-          processResult: {
-            status: 'done',
-            processedImageData: newImageData,
-            bgMask,
-            previewDataURL,
-            processTime: Date.now(),
+        worker.onmessage = function handleAssetsResult(e2) {
+          const { type: t2, assets: a2, error: e2err } = e2.data;
+          if (t2 === 'detectAssetsResult' && a2) {
+            // 步骤 2: 素材拆分完成，保存 assets
+            const previewDataURL = imageDataToDataURL(newImageData);
+
+            updateFile(fileItem.id, {
+              processResult: {
+                status: 'done',
+                processedImageData: newImageData,
+                bgMask,
+                previewDataURL,
+                assets: a2,
+                processTime: Date.now(),
+              },
+            });
+          } else if (t2 === 'error' || e2err) {
+            // detectAssets 失败，只保存去背景结果
+            const previewDataURL = imageDataToDataURL(newImageData);
+            updateFile(fileItem.id, {
+              processResult: {
+                status: 'done',
+                processedImageData: newImageData,
+                bgMask,
+                previewDataURL,
+                assets: [],
+                processTime: Date.now(),
+              },
+            });
+          }
+          releaseWorker(worker);
+          resolve();
+        };
+
+        // 发送 detectAssets 请求
+        worker.postMessage({
+          type: 'detectAssets',
+          data: {
+            imageData: {
+              width: result.imageData.width,
+              height: result.imageData.height,
+              data: Array.from(result.imageData.data),
+            },
+            mergeDistance: 24,
+            minArea: 500,
+            padding: 12,
           },
         });
       } else if (type === 'error' || error) {
         updateFile(fileItem.id, { processResult: { ...fileItem.processResult, status: 'error' } });
+        releaseWorker(worker);
+        resolve();
       }
-
-      releaseWorker(worker);
-      resolve();
     };
 
     worker.onerror = function(e) {

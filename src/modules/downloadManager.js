@@ -61,20 +61,65 @@ async function downloadAsZip(files, namingResults) {
 
   for (let i = 0; i < total; i++) {
     const file = files[i];
-    const fileName = (namingResults.get(file.id) || file.name.replace(/\.[^.]+$/, '')) + '.png';
+    const baseName = namingResults.get(file.id) || file.name.replace(/\.[^.]+$/, '');
 
     try {
-      const canvas = imageDataToCanvas(file.processResult.processedImageData);
-      const blob = await canvasToBlob(canvas);
-      imagesFolder.file(fileName, blob);
+      // 如果有 assets（批量拆分后的素材），下载拆分素材
+      if (file.processResult.assets && file.processResult.assets.length > 0) {
+        for (let j = 0; j < file.processResult.assets.length; j++) {
+          const asset = file.processResult.assets[j];
+          const assetCanvas = document.createElement('canvas');
+          assetCanvas.width = asset.bounds.w;
+          assetCanvas.height = asset.bounds.h;
+          const assetCtx = assetCanvas.getContext('2d');
+          const assetImageData = assetCtx.createImageData(asset.bounds.w, asset.bounds.h);
 
-      manifest.push({
-        name: namingResults.get(file.id) || file.name.replace(/\.[^.]+$/, ''),
-        file: fileName,
-        width: file.processResult.processedImageData.width,
-        height: file.processResult.processedImageData.height,
-        originalName: file.name,
-      });
+          // 填充像素
+          for (const p of asset.pixels) {
+            const px = Array.isArray(p) ? p[0] : p.x;
+            const py = Array.isArray(p) ? p[1] : p.y;
+            const localX = px - asset.bounds.x;
+            const localY = py - asset.bounds.y;
+            if (localX >= 0 && localX < asset.bounds.w && localY >= 0 && localY < asset.bounds.h) {
+              const srcIdx = (py * file.processResult.processedImageData.width + px) * 4;
+              const dstIdx = (localY * asset.bounds.w + localX) * 4;
+              assetImageData.data[dstIdx] = file.processResult.processedImageData.data[srcIdx];
+              assetImageData.data[dstIdx + 1] = file.processResult.processedImageData.data[srcIdx + 1];
+              assetImageData.data[dstIdx + 2] = file.processResult.processedImageData.data[srcIdx + 2];
+              assetImageData.data[dstIdx + 3] = 255;
+            }
+          }
+
+          assetCtx.putImageData(assetImageData, 0, 0);
+          const blob = await canvasToBlob(assetCanvas);
+          const assetFileName = `${baseName}_${String(j + 1).padStart(3, '0')}.png`;
+          imagesFolder.file(assetFileName, blob);
+
+          manifest.push({
+            name: `${baseName}_${String(j + 1).padStart(3, '0')}`,
+            file: assetFileName,
+            width: asset.bounds.w,
+            height: asset.bounds.h,
+            originalName: file.name,
+            sourceX: asset.bounds.x,
+            sourceY: asset.bounds.y,
+          });
+        }
+      } else {
+        // 没有 assets，下载整张去背景后的图
+        const canvas = imageDataToCanvas(file.processResult.processedImageData);
+        const blob = await canvasToBlob(canvas);
+        const fileName = baseName + '.png';
+        imagesFolder.file(fileName, blob);
+
+        manifest.push({
+          name: baseName,
+          file: fileName,
+          width: file.processResult.processedImageData.width,
+          height: file.processResult.processedImageData.height,
+          originalName: file.name,
+        });
+      }
 
       notify('downloadProgress', {
         current: i + 1,
@@ -160,6 +205,8 @@ export function renderDownloadPanel() {
   for (const file of processedFiles) {
     const newName = namingResults.get(file.id) || file.name.replace(/\.[^.]+$/, '');
     const isSelected = selectedIds.has(file.id);
+    const hasAssets = file.processResult.assets && file.processResult.assets.length > 0;
+    const assetCount = hasAssets ? file.processResult.assets.length : 1;
 
     const row = document.createElement('div');
     row.className = 'download-row' + (isSelected ? ' selected' : '');
@@ -174,10 +221,13 @@ export function renderDownloadPanel() {
           : ''}
       </div>
       <div class="download-info">
-        <div class="download-name">${newName}.png</div>
-        <div class="download-meta">${file.processResult.processedImageData ? `${file.processResult.processedImageData.width}x${file.processResult.processedImageData.height}` : ''}</div>
+        <div class="download-name">${newName}</div>
+        <div class="download-meta">${hasAssets
+          ? `${assetCount} 个素材 · ${file.processResult.assets[0].bounds.w}x${file.processResult.assets[0].bounds.h} ...`
+          : `${file.processResult.processedImageData.width}x${file.processResult.processedImageData.height}`
+        }</div>
       </div>
-      <div class="download-status status-ready">就绪</div>
+      <div class="download-status status-ready">${hasAssets ? `${assetCount}个素材` : '单图'}</div>
     `;
 
     container.appendChild(row);
@@ -192,7 +242,10 @@ export function renderDownloadPanel() {
 
   const statsEl = document.getElementById('download-stats');
   if (statsEl) {
+    const totalAssets = processedFiles.reduce((sum, f) => {
+      return sum + (f.processResult.assets ? f.processResult.assets.length : 1);
+    }, 0);
     const selectedCount = processedFiles.filter(f => selectedIds.has(f.id)).length;
-    statsEl.textContent = `共 ${processedFiles.length} 个文件，已选 ${selectedCount} 个`;
+    statsEl.textContent = `共 ${totalAssets} 个素材，已选 ${selectedCount} 个文件`;
   }
 }
