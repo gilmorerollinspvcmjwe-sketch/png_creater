@@ -18,6 +18,15 @@ const singleState = {
   fileWidth: 0,
   fileHeight: 0,
   selectedBgColor: null,
+  pickMode: null, // null | 'bg' | 'outline' | 'innerBg' | 'innerOutline'
+  irMode: {
+    bgColor: null,
+    outlineColor: null,
+    regions: [],
+    selectedRegions: new Set(),
+    innerBgColor: null,
+    innerOutlineColor: null,
+  },
 };
 
 const singleElements = {
@@ -73,7 +82,7 @@ async function init() {
   }
 
   worker.onmessage = function(e) {
-    const { type, result, assets, error } = e.data;
+    const { type, result, assets, regions, error } = e.data;
 
     switch (type) {
       case 'processImageResult':
@@ -81,6 +90,12 @@ async function init() {
         break;
       case 'detectAssetsResult':
         handleDetectedAssets(assets);
+        break;
+      case 'irregularDetectResult':
+        handleIrregularDetectResult(regions);
+        break;
+      case 'innerContourRemoveResult':
+        handleInnerContourRemoveResult(regions);
         break;
       case 'error':
         console.error('Worker 错误:', error);
@@ -189,6 +204,11 @@ function setupSingleEventListeners() {
       alert('请先上传图片');
       return;
     }
+    // 如果当前是异形模式，取色按钮不生效
+    if (el.bgMode.value === 'irregular') {
+      showToast('异形模式下请使用下方专用取色按钮');
+      return;
+    }
     colorPickerMode = !colorPickerMode;
     el.colorPickerBtn.textContent = colorPickerMode ? '点击原图取背景色' : '点击背景取色';
     if (colorPickerMode) {
@@ -197,6 +217,56 @@ function setupSingleEventListeners() {
       el.originalPreview.style.cursor = 'default';
     }
   });
+
+  // 异形模式专用取色按钮
+  const irBgPickBtn = document.getElementById('ir-bg-pick-btn');
+  const irOutlinePickBtn = document.getElementById('ir-outline-pick-btn');
+  const innerBgPickBtn = document.getElementById('inner-bg-pick-btn');
+  const innerOutlinePickBtn = document.getElementById('inner-outline-pick-btn');
+
+  if (irBgPickBtn) irBgPickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'bg';
+    showToast('请点击原图上的背景区域');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  if (irOutlinePickBtn) irOutlinePickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'outline';
+    showToast('请点击原图上的黑色外轮廓');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  if (innerBgPickBtn) innerBgPickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'innerBg';
+    showToast('请点击素材内部的背景区域');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  if (innerOutlinePickBtn) innerOutlinePickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'innerOutline';
+    showToast('请点击内部轮廓（可选）');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  // 背景模式切换
+  if (el.bgMode) el.bgMode.addEventListener('change', (e) => {
+    const isIrregular = e.target.value === 'irregular';
+    const normalControls = document.getElementById('normal-mode-controls');
+    const irregularControls = document.getElementById('irregular-mode-controls');
+    if (normalControls) normalControls.style.display = isIrregular ? 'none' : '';
+    if (irregularControls) irregularControls.style.display = isIrregular ? '' : 'none';
+    if (!isIrregular) {
+      resetIrregularState();
+    }
+  });
+
+  // 应用内轮廓抠图
+  const applyInnerBtn = document.getElementById('apply-inner-btn');
+  if (applyInnerBtn) applyInnerBtn.addEventListener('click', applyInnerContour);
 
   if (el.originalPreview) el.originalPreview.addEventListener('click', handleImageClick);
 
@@ -295,6 +365,57 @@ function handleFile(file) {
 }
 
 function handleImageClick(e) {
+  // 异形模式取色
+  if (singleState.pickMode) {
+    const rect = singleElements.originalPreview.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / rect.width * singleState.fileWidth);
+    const y = Math.floor((e.clientY - rect.top) / rect.height * singleState.fileHeight);
+
+    const idx = (y * singleState.fileWidth + x) * 4;
+    const r = singleState.originalImageData.data[idx];
+    const g = singleState.originalImageData.data[idx + 1];
+    const b = singleState.originalImageData.data[idx + 2];
+
+    if (singleState.pickMode === 'bg') {
+      singleState.irMode.bgColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('ir-bg-color-picker');
+      const status = document.getElementById('ir-bg-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('背景色已选取');
+    } else if (singleState.pickMode === 'outline') {
+      singleState.irMode.outlineColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('ir-outline-color-picker');
+      const status = document.getElementById('ir-outline-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('轮廓色已选取');
+    } else if (singleState.pickMode === 'innerBg') {
+      singleState.irMode.innerBgColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('inner-bg-color-picker');
+      const status = document.getElementById('inner-bg-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('内部背景色已选取');
+    } else if (singleState.pickMode === 'innerOutline') {
+      singleState.irMode.innerOutlineColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('inner-outline-color-picker');
+      const status = document.getElementById('inner-outline-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('内部轮廓色已选取');
+    }
+
+    singleState.pickMode = null;
+    if (singleElements.originalPreview) singleElements.originalPreview.style.cursor = 'default';
+    return;
+  }
+
+  // 原有普通模式取色
   if (!colorPickerMode || !singleState.originalImageData) return;
 
   const rect = singleElements.originalPreview.getBoundingClientRect();
@@ -330,6 +451,16 @@ function hideLoading() {
 function processImage() {
   if (!singleState.originalImage) return;
 
+  const bgMode = singleElements.bgMode.value;
+
+  if (bgMode === 'irregular') {
+    processIrregular();
+  } else {
+    processNormal();
+  }
+}
+
+function processNormal() {
   showLoading('正在处理图片...');
 
   const canvas = document.createElement('canvas');
@@ -359,6 +490,46 @@ function processImage() {
   processTimeout = setTimeout(() => {
     hideLoading();
     alert('处理超时，请尝试使用更小的图片或刷新页面');
+  }, 30000);
+}
+
+function processIrregular() {
+  if (!singleState.irMode.bgColor) {
+    alert('请先选取背景色');
+    return;
+  }
+
+  showLoading('正在检测异形素材...');
+
+  const canvas = document.createElement('canvas');
+  canvas.width = singleState.fileWidth;
+  canvas.height = singleState.fileHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(singleState.originalImage, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  singleState.originalImageData = imageData;
+
+  worker.postMessage({
+    type: 'irregularDetect',
+    data: {
+      imageData: {
+        width: imageData.width,
+        height: imageData.height,
+        data: Array.from(imageData.data)
+      },
+      bgColor: singleState.irMode.bgColor,
+      outlineColor: singleState.irMode.outlineColor,
+      outlineTolerance: parseInt(document.getElementById('outline-tolerance').value),
+      sensitivity: parseInt(document.getElementById('detect-sensitivity').value),
+      minArea: parseInt(document.getElementById('ir-min-area').value),
+      dilatePx: parseInt(document.getElementById('dilate-px').value)
+    }
+  });
+
+  processTimeout = setTimeout(() => {
+    hideLoading();
+    alert('检测超时，请尝试调整参数');
   }, 30000);
 }
 
@@ -546,6 +717,258 @@ function downloadSingleCandidate(id) {
   link.download = `${candidate.name}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
+}
+
+function handleIrregularDetectResult(regions) {
+  clearTimeout(processTimeout);
+
+  singleState.irMode.regions = regions;
+  singleState.candidates = regions.map((r, i) => ({
+    id: i + 1,
+    name: `candidate-${String(i + 1).padStart(3, '0')}`,
+    x: r.bounds.x,
+    y: r.bounds.y,
+    w: r.bounds.w,
+    h: r.bounds.h,
+    pixels: r.pixels,
+    pixelSet: r.pixelSet,
+    color: r.color,
+    area: r.area,
+  }));
+  singleState.selectedCandidates = new Set(singleState.candidates.map(c => c.id));
+
+  singleElements.candidateCount.textContent = regions.length;
+  renderIrregularCandidates();
+  renderIrregularPreview();
+
+  // 显示内轮廓抠图区域
+  const innerSection = document.getElementById('inner-contour-section');
+  if (innerSection) innerSection.style.display = '';
+
+  singleElements.exportSelectedBtn.disabled = regions.length === 0;
+  singleElements.exportAllBtn.disabled = regions.length === 0;
+  singleElements.downloadZipBtn.disabled = regions.length === 0;
+
+  hideLoading();
+}
+
+function renderIrregularCandidates() {
+  singleElements.candidatesGrid.innerHTML = '';
+
+  if (singleState.candidates.length === 0) {
+    singleElements.candidatesGrid.innerHTML = '<div class="empty-state"><p>未识别到候选素材</p></div>';
+    return;
+  }
+
+  for (const candidate of singleState.candidates) {
+    const card = document.createElement('div');
+    card.className = 'candidate-card';
+    card.dataset.id = candidate.id;
+
+    if (singleState.selectedCandidates.has(candidate.id)) {
+      card.classList.add('selected');
+    }
+
+    // 创建精确像素的预览
+    const canvas = document.createElement('canvas');
+    canvas.width = candidate.w;
+    canvas.height = candidate.h;
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(candidate.w, candidate.h);
+
+    if (candidate.pixels && singleState.originalImageData) {
+      for (const {x, y} of candidate.pixels) {
+        const localX = x - candidate.x;
+        const localY = y - candidate.y;
+        if (localX >= 0 && localX < candidate.w && localY >= 0 && localY < candidate.h) {
+          const srcIdx = (y * singleState.fileWidth + x) * 4;
+          const dstIdx = (localY * candidate.w + localX) * 4;
+          imageData.data[dstIdx] = singleState.originalImageData.data[srcIdx];
+          imageData.data[dstIdx + 1] = singleState.originalImageData.data[srcIdx + 1];
+          imageData.data[dstIdx + 2] = singleState.originalImageData.data[srcIdx + 2];
+          imageData.data[dstIdx + 3] = 255;
+        }
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    card.innerHTML = `
+      <div class="candidate-preview">
+        <img src="${canvas.toDataURL()}" alt="${candidate.name}">
+      </div>
+      <div class="candidate-info">
+        <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
+        <div class="candidate-meta">${candidate.w} x ${candidate.h} | 面积: ${candidate.area}</div>
+        <div class="candidate-actions">
+          <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
+          <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
+        </div>
+      </div>
+    `;
+
+    singleElements.candidatesGrid.appendChild(card);
+  }
+
+  // 绑定事件
+  document.querySelectorAll('.candidate-name-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const candidate = singleState.candidates.find(c => c.id === id);
+      if (candidate) candidate.name = sanitizeFileName(e.target.value);
+    });
+  });
+
+  document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      deleteCandidate(id);
+    });
+  });
+
+  document.querySelectorAll('.btn-download').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      downloadSingleCandidate(id);
+    });
+  });
+
+  document.querySelectorAll('.candidate-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+      const id = parseInt(card.dataset.id);
+      toggleCandidateSelection(id);
+    });
+  });
+}
+
+function renderIrregularPreview() {
+  if (!singleState.originalImageData || singleState.candidates.length === 0) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = singleState.fileWidth;
+  canvas.height = singleState.fileHeight;
+  const ctx = canvas.getContext('2d');
+  const imageData = new ImageData(
+    new Uint8ClampedArray(singleState.originalImageData.data),
+    singleState.fileWidth,
+    singleState.fileHeight
+  );
+
+  // 非选中区域的像素变透明
+  const selectedSet = new Set();
+  for (const c of singleState.candidates) {
+    if (singleState.selectedCandidates.has(c.id) && c.pixels) {
+      for (const {x, y} of c.pixels) {
+        selectedSet.add(y * singleState.fileWidth + x);
+      }
+    }
+  }
+
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const idx = i / 4;
+    if (!selectedSet.has(idx)) {
+      imageData.data[i + 3] = 0;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  singleElements.transparentPreview.src = canvas.toDataURL();
+  singleElements.transparentPreview.hidden = false;
+}
+
+function applyInnerContour() {
+  const selectedIds = Array.from(singleState.selectedCandidates);
+  if (selectedIds.length === 0) {
+    alert('请先勾选要处理的素材');
+    return;
+  }
+  if (!singleState.irMode.innerBgColor) {
+    alert('请先选取内部背景色');
+    return;
+  }
+
+  showLoading('正在去除内部背景...');
+
+  const selectedIndices = selectedIds.map(id => id - 1);
+
+  worker.postMessage({
+    type: 'innerContourRemove',
+    data: {
+      imageData: {
+        width: singleState.fileWidth,
+        height: singleState.fileHeight,
+        data: Array.from(singleState.originalImageData.data)
+      },
+      regions: singleState.irMode.regions,
+      selectedIndices: selectedIndices,
+      innerBgColor: singleState.irMode.innerBgColor,
+      innerOutlineColor: singleState.irMode.innerOutlineColor,
+      innerTolerance: parseInt(document.getElementById('inner-tolerance').value),
+      innerDilatePx: parseInt(document.getElementById('inner-dilate-px').value)
+    }
+  });
+
+  processTimeout = setTimeout(() => {
+    hideLoading();
+    alert('处理超时');
+  }, 30000);
+}
+
+function handleInnerContourRemoveResult(regions) {
+  clearTimeout(processTimeout);
+
+  singleState.irMode.regions = regions;
+  singleState.candidates = regions.map((r, i) => ({
+    id: i + 1,
+    name: singleState.candidates[i]?.name || `candidate-${String(i + 1).padStart(3, '0')}`,
+    x: r.bounds.x,
+    y: r.bounds.y,
+    w: r.bounds.w,
+    h: r.bounds.h,
+    pixels: r.pixels,
+    pixelSet: r.pixelSet,
+    color: r.color,
+    area: r.area,
+  }));
+
+  singleElements.candidateCount.textContent = regions.length;
+  renderIrregularCandidates();
+  renderIrregularPreview();
+  hideLoading();
+  showToast('内部背景已去除');
+}
+
+function resetIrregularState() {
+  singleState.irMode = {
+    bgColor: null,
+    outlineColor: null,
+    regions: [],
+    selectedRegions: new Set(),
+    innerBgColor: null,
+    innerOutlineColor: null,
+  };
+  singleState.pickMode = null;
+
+  // 重置 UI
+  const bgStatus = document.getElementById('ir-bg-color-status');
+  const outlineStatus = document.getElementById('ir-outline-color-status');
+  const innerStatus = document.getElementById('inner-bg-color-status');
+  const innerOutlineStatus = document.getElementById('inner-outline-color-status');
+  const innerSection = document.getElementById('inner-contour-section');
+
+  if (bgStatus) bgStatus.textContent = '未取色';
+  if (outlineStatus) outlineStatus.textContent = '未取色';
+  if (innerStatus) innerStatus.textContent = '未取色';
+  if (innerOutlineStatus) innerOutlineStatus.textContent = '未取色';
+  if (innerSection) innerSection.style.display = 'none';
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(x => {
+    const hex = x.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
 }
 
 function updatePreviewBackground() {

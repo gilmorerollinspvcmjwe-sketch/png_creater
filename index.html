@@ -54,39 +54,123 @@
                 <option value="solid">纯色底抠图</option>
                 <option value="checkerboard">棋盘格抠图</option>
                 <option value="keep-transparent">保留透明</option>
+                <option value="irregular">🔹 异形抠图</option>
               </select>
             </div>
 
-            <div class="control-group">
-              <label for="tolerance">容差 <span class="range-val" id="tolerance-value">80</span></label>
-              <input type="range" id="tolerance" min="0" max="300" value="80">
+            <!-- 普通模式控件 -->
+            <div id="normal-mode-controls">
+              <div class="control-group">
+                <label for="tolerance">容差 <span class="range-val" id="tolerance-value">80</span></label>
+                <input type="range" id="tolerance" min="0" max="300" value="80">
+              </div>
+
+              <div class="control-group">
+                <label for="edge-removal">去边强度 <span class="range-val" id="edge-removal-value">15</span></label>
+                <input type="range" id="edge-removal" min="0" max="50" value="15">
+              </div>
+
+              <div class="control-group">
+                <label for="dilate-erode">膨胀/腐蚀 <span class="range-val" id="dilate-erode-value">0</span></label>
+                <input type="range" id="dilate-erode" min="-5" max="10" value="0">
+              </div>
+
+              <div class="section" style="margin-top:12px"><div class="section-title">素材识别</div></div>
+
+              <div class="control-group">
+                <label for="merge-distance">合并距离 <span class="range-val" id="merge-distance-value">24</span></label>
+                <input type="range" id="merge-distance" min="0" max="64" value="24">
+              </div>
+
+              <div class="control-group">
+                <label for="min-area">最小面积 <span class="range-val" id="min-area-value">1000</span></label>
+                <input type="range" id="min-area" min="100" max="5000" value="1000" step="100">
+              </div>
+
+              <div class="control-group">
+                <label for="padding">安全边距 <span class="range-val" id="padding-value">12</span></label>
+                <input type="range" id="padding" min="0" max="32" value="12">
+              </div>
             </div>
 
-            <div class="control-group">
-              <label for="edge-removal">去边强度 <span class="range-val" id="edge-removal-value">15</span></label>
-              <input type="range" id="edge-removal" min="0" max="50" value="15">
-            </div>
+            <!-- 异形抠图专用控件 -->
+            <div id="irregular-mode-controls" style="display:none">
+              <div class="section"><div class="section-title">颜色标注</div></div>
+              <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">先标注背景色和轮廓色，再检测</p>
 
-            <div class="control-group">
-              <label for="dilate-erode">膨胀/腐蚀 <span class="range-val" id="dilate-erode-value">0</span></label>
-              <input type="range" id="dilate-erode" min="-5" max="10" value="0">
-            </div>
+              <div class="control-group">
+                <label>背景色</label>
+                <div class="color-pick-row">
+                  <input type="color" id="ir-bg-color-picker" value="#ffffff">
+                  <span class="color-hex" id="ir-bg-color-status">未取色</span>
+                  <button class="btn btn-sm btn-secondary" id="ir-bg-pick-btn">🧪 取色</button>
+                </div>
+              </div>
 
-            <div class="section" style="margin-top:12px"><div class="section-title">素材识别</div></div>
+              <div class="control-group">
+                <label>轮廓色（可选）</label>
+                <div class="color-pick-row">
+                  <input type="color" id="ir-outline-color-picker" value="#000000">
+                  <span class="color-hex" id="ir-outline-color-status">未取色</span>
+                  <button class="btn btn-sm btn-secondary" id="ir-outline-pick-btn">🧪 取色</button>
+                </div>
+              </div>
 
-            <div class="control-group">
-              <label for="merge-distance">合并距离 <span class="range-val" id="merge-distance-value">24</span></label>
-              <input type="range" id="merge-distance" min="0" max="64" value="24">
-            </div>
+              <div class="control-group">
+                <label>轮廓容差 <span class="range-val" id="outline-tol-val">80</span></label>
+                <input type="range" id="outline-tolerance" min="1" max="100" value="80">
+              </div>
 
-            <div class="control-group">
-              <label for="min-area">最小面积 <span class="range-val" id="min-area-value">1000</span></label>
-              <input type="range" id="min-area" min="100" max="5000" value="1000" step="100">
-            </div>
+              <div class="control-group">
+                <label>检测灵敏度 <span class="range-val" id="detect-sens-val">30</span></label>
+                <input type="range" id="detect-sensitivity" min="1" max="100" value="30">
+              </div>
 
-            <div class="control-group">
-              <label for="padding">安全边距 <span class="range-val" id="padding-value">12</span></label>
-              <input type="range" id="padding" min="0" max="32" value="12">
+              <div class="control-group">
+                <label>最小面积 <span class="range-val" id="ir-min-area-val">100</span></label>
+                <input type="range" id="ir-min-area" min="10" max="5000" value="100" step="10">
+              </div>
+
+              <div class="control-group">
+                <label>轮廓外扩 <span class="range-val" id="dilate-px-val">-1</span></label>
+                <input type="range" id="dilate-px" min="-5" max="10" value="-1">
+              </div>
+
+              <!-- 内轮廓抠图区域（检测完成后显示） -->
+              <div id="inner-contour-section" style="display:none">
+                <div class="section" style="margin-top:12px"><div class="section-title">内轮廓抠图</div></div>
+                <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">去除已检测区域内部的背景色</p>
+
+                <div class="control-group">
+                  <label>内部背景色</label>
+                  <div class="color-pick-row">
+                    <input type="color" id="inner-bg-color-picker" value="#ffffff">
+                    <span class="color-hex" id="inner-bg-color-status">未取色</span>
+                    <button class="btn btn-sm btn-secondary" id="inner-bg-pick-btn">🧪 取色</button>
+                  </div>
+                </div>
+
+                <div class="control-group">
+                  <label>内部轮廓色（可选）</label>
+                  <div class="color-pick-row">
+                    <input type="color" id="inner-outline-color-picker" value="#000000">
+                    <span class="color-hex" id="inner-outline-color-status">未取色</span>
+                    <button class="btn btn-sm btn-secondary" id="inner-outline-pick-btn">🧪 取色</button>
+                  </div>
+                </div>
+
+                <div class="control-group">
+                  <label>内部容差 <span class="range-val" id="inner-tol-val">50</span></label>
+                  <input type="range" id="inner-tolerance" min="1" max="100" value="50">
+                </div>
+
+                <div class="control-group">
+                  <label>内扣外扩 <span class="range-val" id="inner-dilate-px-val">-1</span></label>
+                  <input type="range" id="inner-dilate-px" min="-5" max="10" value="-1">
+                </div>
+
+                <button class="btn btn-primary btn-full" id="apply-inner-btn" style="margin-top:6px">🕳️ 去除内部背景</button>
+              </div>
             </div>
 
             <div class="control-actions">
