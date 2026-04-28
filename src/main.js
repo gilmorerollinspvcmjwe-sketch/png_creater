@@ -533,6 +533,13 @@ function processImage() {
 function processNormal() {
   showLoading('正在处理图片...');
 
+  const bgMode = singleElements.bgMode.value;
+  if (bgMode === 'solid' && !singleState.selectedBgColor) {
+    hideLoading();
+    alert('请先选取背景色（点击"点击取色"按钮）');
+    return;
+  }
+
   const canvas = document.createElement('canvas');
   canvas.width = singleState.fileWidth;
   canvas.height = singleState.fileHeight;
@@ -550,7 +557,7 @@ function processNormal() {
         height: imageData.height,
         data: Array.from(imageData.data)
       },
-      bgMode: singleElements.bgMode.value,
+      bgMode: bgMode,
       tolerance: parseInt(singleElements.tolerance.value),
       edgeRemoval: parseInt(singleElements.edgeRemoval.value),
       dilateErode: parseInt(singleElements.dilateErode.value),
@@ -652,16 +659,46 @@ function detectAssets() {
 function handleDetectedAssets(assets) {
   clearTimeout(processTimeout);
 
-  singleState.candidates = assets;
-  singleState.selectedCandidates = new Set(assets.map(a => a.id));
+  // 为每个素材生成缩略图 dataURL
+  const candidates = assets.map(asset => {
+    let thumbDataURL = '';
+    if (asset.thumbnail && asset.thumbnail.data) {
+      try {
+        const thumbImageData = new ImageData(
+          new Uint8ClampedArray(asset.thumbnail.data),
+          asset.thumbnail.width,
+          asset.thumbnail.height
+        );
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = asset.thumbnail.width;
+        thumbCanvas.height = asset.thumbnail.height;
+        thumbCanvas.getContext('2d').putImageData(thumbImageData, 0, 0);
+        thumbDataURL = thumbCanvas.toDataURL('image/png');
+      } catch (err) {
+        console.warn('Thumbnail generation failed:', err);
+      }
+    }
+    return {
+      id: asset.id,
+      name: asset.name,
+      x: asset.x,
+      y: asset.y,
+      w: asset.w,
+      h: asset.h,
+      thumbDataURL: thumbDataURL,
+    };
+  });
 
-  singleElements.candidateCount.textContent = assets.length;
+  singleState.candidates = candidates;
+  singleState.selectedCandidates = new Set(candidates.map(a => a.id));
+
+  singleElements.candidateCount.textContent = candidates.length;
 
   renderCandidates();
 
-  singleElements.exportSelectedBtn.disabled = assets.length === 0;
-  singleElements.exportAllBtn.disabled = assets.length === 0;
-  singleElements.downloadZipBtn.disabled = assets.length === 0;
+  singleElements.exportSelectedBtn.disabled = candidates.length === 0;
+  singleElements.exportAllBtn.disabled = candidates.length === 0;
+  singleElements.downloadZipBtn.disabled = candidates.length === 0;
 
   hideLoading();
 }
@@ -683,17 +720,33 @@ function renderCandidates() {
       card.classList.add('selected');
     }
 
+    // 先设置卡片结构
+    card.innerHTML = `
+      <div class="candidate-preview">
+        <img src="" alt="${candidate.name}">
+      </div>
+      <div class="candidate-info">
+        <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
+        <div class="candidate-meta">${candidate.w} x ${candidate.h}</div>
+        <div class="candidate-actions">
+          <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
+          <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
+        </div>
+      </div>
+    `;
+
+    // 然后渲染缩略图
+    const previewImg = card.querySelector('.candidate-preview img');
     const canvas = document.createElement('canvas');
     canvas.width = candidate.w;
     canvas.height = candidate.h;
     const ctx = canvas.getContext('2d');
 
-    // 优先使用缩略图，否则从整图提取
     if (candidate.thumbDataURL) {
       const img = new Image();
       img.onload = () => {
         ctx.drawImage(img, 0, 0, candidate.w, candidate.h);
-        card.querySelector('.candidate-preview img').src = canvas.toDataURL();
+        previewImg.src = canvas.toDataURL();
       };
       img.src = candidate.thumbDataURL;
     } else if (singleState.processedImageData) {
@@ -715,21 +768,8 @@ function renderCandidates() {
         }
       }
       ctx.putImageData(imageData, 0, 0);
+      previewImg.src = canvas.toDataURL();
     }
-
-    card.innerHTML = `
-      <div class="candidate-preview">
-        <img src="" alt="${candidate.name}">
-      </div>
-      <div class="candidate-info">
-        <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
-        <div class="candidate-meta">${candidate.w} x ${candidate.h}</div>
-        <div class="candidate-actions">
-          <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
-          <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
-        </div>
-      </div>
-    `;
 
     singleElements.candidatesGrid.appendChild(card);
   }
