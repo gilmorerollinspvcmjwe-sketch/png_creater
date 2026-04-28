@@ -183,12 +183,12 @@
 
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 48px 20px;
   color: var(--text-secondary);
 }
-.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
 .empty-state p { font-size: 14px; margin-bottom: 4px; }
-.empty-state .sub { font-size: 12px; color: var(--text-muted); }
+.empty-state .hint { font-size: 12px; color: var(--text-muted); }
 
 .toast-container {
   position: fixed;

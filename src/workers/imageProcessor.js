@@ -813,7 +813,6 @@ function applyEdgeRemoval(data, width, height, bgMask, intensity) {
 
 function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
   const { width, height, data } = imageData;
-  const pixelData = new Uint8ClampedArray(data);
   const mask = new Uint8Array(bgMask.length);
   
   for (let i = 0; i < bgMask.length; i++) {
@@ -821,15 +820,13 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
   }
   
   const dilatedMask = dilateMask(mask, width, height, Math.floor(mergeDistance / 2));
-  
   const regions = findConnectedRegions(dilatedMask, width, height);
   
   const filteredRegions = regions
     .filter(region => {
-      const width = region.maxX - region.minX + 1;
-      const height = region.maxY - region.minY + 1;
-      const area = width * height;
-      return area >= minArea;
+      const rw = region.maxX - region.minX + 1;
+      const rh = region.maxY - region.minY + 1;
+      return rw * rh >= minArea;
     })
     .filter(region => {
       const edgeMargin = 5;
@@ -838,22 +835,15 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
         region.maxX >= width - edgeMargin ||
         region.minY <= edgeMargin ||
         region.maxY >= height - edgeMargin;
-      
-      const regionWidth = region.maxX - region.minX + 1;
-      const regionHeight = region.maxY - region.minY + 1;
-      const aspectRatio = Math.max(regionWidth, regionHeight) / Math.min(regionWidth, regionHeight);
-      
-      if (touchesEdge && aspectRatio > 5) {
-        return false;
-      }
-      
+      const rw = region.maxX - region.minX + 1;
+      const rh = region.maxY - region.minY + 1;
+      const aspectRatio = Math.max(rw, rh) / Math.min(rw, rh);
+      if (touchesEdge && aspectRatio > 5) return false;
       return true;
     });
   
   filteredRegions.sort((a, b) => {
-    if (Math.abs(a.minY - b.minY) < 20) {
-      return a.minX - b.minX;
-    }
+    if (Math.abs(a.minY - b.minY) < 20) return a.minX - b.minX;
     return a.minY - b.minY;
   });
   
@@ -863,34 +853,39 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
     const w = Math.min(width - x, region.maxX - region.minX + 1 + padding * 2);
     const h = Math.min(height - y, region.maxY - region.minY + 1 + padding * 2);
     
-    const assetImageData = new Uint8ClampedArray(w * h * 4);
+    // 生成缩略图（最大 64px 宽）
+    const maxThumbSize = 64;
+    const scale = Math.min(maxThumbSize / w, maxThumbSize / h, 1);
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const thumbData = new Uint8ClampedArray(tw * th * 4);
     
-    for (let cy = 0; cy < h; cy++) {
-      for (let cx = 0; cx < w; cx++) {
-        const srcX = x + cx;
-        const srcY = y + cy;
+    for (let ty = 0; ty < th; ty++) {
+      for (let tx = 0; tx < tw; tx++) {
+        const srcX = x + Math.round(tx / scale);
+        const srcY = y + Math.round(ty / scale);
         const srcIdx = (srcY * width + srcX) * 4;
-        const destIdx = (cy * w + cx) * 4;
+        const dstIdx = (ty * tw + tx) * 4;
         
-        if (bgMask[srcY * width + srcX] === 1) {
-          assetImageData[destIdx + 3] = 0;
+        if (mask[srcY * width + srcX] === 0) {
+          thumbData[dstIdx] = data[srcIdx];
+          thumbData[dstIdx + 1] = data[srcIdx + 1];
+          thumbData[dstIdx + 2] = data[srcIdx + 2];
+          thumbData[dstIdx + 3] = data[srcIdx + 3];
         } else {
-          assetImageData[destIdx] = pixelData[srcIdx];
-          assetImageData[destIdx + 1] = pixelData[srcIdx + 1];
-          assetImageData[destIdx + 2] = pixelData[srcIdx + 2];
-          assetImageData[destIdx + 3] = pixelData[srcIdx + 3];
+          thumbData[dstIdx + 3] = 0;
         }
       }
     }
     
     return {
       id: index + 1,
-      name: `candidate-${String(index + 1).padStart(3, '0')}`,
+      name: `asset-${String(index + 1).padStart(3, '0')}`,
       x, y, w, h,
-      imageData: {
-        width: w,
-        height: h,
-        data: Array.from(assetImageData)
+      thumbnail: {
+        width: tw,
+        height: th,
+        data: Array.from(thumbData)
       }
     };
   });

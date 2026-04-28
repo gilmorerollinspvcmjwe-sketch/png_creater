@@ -64,11 +64,41 @@ async function downloadAsZip(files, namingResults) {
     const baseName = namingResults.get(file.id) || file.name.replace(/\.[^.]+$/, '');
 
     try {
-      // 如果有 assets（批量拆分后的素材），下载拆分素材
       if (file.processResult.assets && file.processResult.assets.length > 0) {
+        // 有拆分素材：从整图中按坐标提取像素
+        const sourceData = file.processResult.processedImageData;
+        const srcW = sourceData.width;
+
         for (let j = 0; j < file.processResult.assets.length; j++) {
           const asset = file.processResult.assets[j];
-          const assetCanvas = imageDataToCanvas(asset.imageData);
+          const assetCanvas = document.createElement('canvas');
+          assetCanvas.width = asset.w;
+          assetCanvas.height = asset.h;
+          const assetCtx = assetCanvas.getContext('2d');
+          const assetImageData = assetCtx.createImageData(asset.w, asset.h);
+
+          // 从整图提取像素
+          for (let ay = 0; ay < asset.h; ay++) {
+            for (let ax = 0; ax < asset.w; ax++) {
+              const srcX = asset.x + ax;
+              const srcY = asset.y + ay;
+              if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < sourceData.height) {
+                const srcIdx = (srcY * srcW + srcX) * 4;
+                const dstIdx = (ay * asset.w + ax) * 4;
+                // 检查是否为透明像素
+                if (sourceData.data[srcIdx + 3] > 0) {
+                  assetImageData.data[dstIdx] = sourceData.data[srcIdx];
+                  assetImageData.data[dstIdx + 1] = sourceData.data[srcIdx + 1];
+                  assetImageData.data[dstIdx + 2] = sourceData.data[srcIdx + 2];
+                  assetImageData.data[dstIdx + 3] = sourceData.data[srcIdx + 3];
+                } else {
+                  assetImageData.data[dstIdx + 3] = 0;
+                }
+              }
+            }
+          }
+
+          assetCtx.putImageData(assetImageData, 0, 0);
           const blob = await canvasToBlob(assetCanvas);
           const assetFileName = `${baseName}_${String(j + 1).padStart(3, '0')}.png`;
           imagesFolder.file(assetFileName, blob);
@@ -84,7 +114,7 @@ async function downloadAsZip(files, namingResults) {
           });
         }
       } else {
-        // 没有 assets，下载整张去背景后的图
+        // 没有拆分素材，下载整张图
         const canvas = imageDataToCanvas(file.processResult.processedImageData);
         const blob = await canvasToBlob(canvas);
         const fileName = baseName + '.png';
@@ -174,7 +204,12 @@ export function renderDownloadPanel() {
   const processedFiles = files.filter(f => f.processResult.status === 'done');
 
   if (processedFiles.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p>请先完成抠图处理</p></div>';
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📦</div>
+        <p>还没有处理完成的文件</p>
+        <p class="hint">请先上传图片并完成抠图</p>
+      </div>`;
     return;
   }
 
@@ -184,28 +219,34 @@ export function renderDownloadPanel() {
     const newName = namingResults.get(file.id) || file.name.replace(/\.[^.]+$/, '');
     const isSelected = selectedIds.has(file.id);
     const hasAssets = file.processResult.assets && file.processResult.assets.length > 0;
-    const assetCount = hasAssets ? file.processResult.assets.length : 1;
+    const assets = file.processResult.assets || [];
 
     const row = document.createElement('div');
     row.className = 'download-row' + (isSelected ? ' selected' : '');
+
+    // 缩略图：优先显示第一个素材的缩略图
+    let thumbHTML = '';
+    if (hasAssets && assets.length > 0 && assets[0].thumbDataURL) {
+      thumbHTML = `<img src="${assets[0].thumbDataURL}" alt="${file.name}">`;
+    } else if (file.processResult.previewDataURL) {
+      thumbHTML = `<img src="${file.processResult.previewDataURL}" alt="${file.name}">`;
+    }
 
     row.innerHTML = `
       <label class="download-checkbox">
         <input type="checkbox" ${isSelected ? 'checked' : ''} data-id="${file.id}">
       </label>
-      <div class="download-thumb">
-        ${file.processResult.previewDataURL
-          ? `<img src="${file.processResult.previewDataURL}" alt="${file.name}">`
-          : ''}
-      </div>
+      <div class="download-thumb">${thumbHTML}</div>
       <div class="download-info">
         <div class="download-name">${newName}</div>
-        <div class="download-meta">${hasAssets
-          ? `${assetCount} 个素材 · ${file.processResult.assets[0].w}x${file.processResult.assets[0].h} ...`
-          : `${file.processResult.processedImageData.width}x${file.processResult.processedImageData.height}`
-        }</div>
+        <div class="download-meta">
+          ${hasAssets
+            ? `<span class="badge">${assets.length} 个素材</span> ${assets[0]?.w}×${assets[0]?.h} …`
+            : `${file.processResult.processedImageData.width}×${file.processResult.processedImageData.height}`
+          }
+        </div>
       </div>
-      <div class="download-status status-ready">${hasAssets ? `${assetCount}个素材` : '单图'}</div>
+      <div class="download-status">${hasAssets ? '已拆分' : '整图'}</div>
     `;
 
     container.appendChild(row);

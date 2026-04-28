@@ -1,5 +1,5 @@
 import { getState, setState, updateFile, subscribe, notify, getFile } from './stateManager.js';
-import { imageToImageData, imageDataToDataURL } from '../utils/helpers.js';
+import { imageToImageData, imageDataToDataURL, imageDataToCanvas, canvasToBlob } from '../utils/helpers.js';
 
 const PRECISION_PRESETS = {
   high: { tolerance: 40, edgeRemoval: 5 },
@@ -140,27 +140,52 @@ function processSingleFile(fileItem, settings, preset) {
       updateFile(fileItem.id, { processResult: { ...fileItem.processResult, status: 'error' } });
       worker.terminate();
       resolve();
-    }, 60000);
+    }, 120000);
 
     // 步骤 1: 去背景
     worker.onmessage = function handleProcessResult(e) {
       clearTimeout(timeout);
-      const { type, result, assets, error } = e.data;
+      const { type, result, error } = e.data;
 
       if (type === 'processImageResult' && result) {
-        // 去背景完成，继续调用 detectAssets 拆分素材
         const newImageData = new ImageData(
           new Uint8ClampedArray(result.imageData.data),
           result.imageData.width,
           result.imageData.height
         );
         const bgMask = new Uint8Array(result.bgMask);
+        const previewDataURL = imageDataToDataURL(newImageData);
 
+        // 发送 detectAssets 请求（拆分素材）
         worker.onmessage = function handleAssetsResult(e2) {
-          const { type: t2, assets: a2, error: e2err } = e2.data;
-          if (t2 === 'detectAssetsResult' && a2) {
-            // 步骤 2: 素材拆分完成，保存 assets
-            const previewDataURL = imageDataToDataURL(newImageData);
+          const { type: t2, assets, error: e2err } = e2.data;
+
+          if (t2 === 'detectAssetsResult' && assets) {
+            // 为每个素材生成缩略图 dataURL
+            const assetsWithThumbs = assets.map(asset => {
+              let thumbDataURL = '';
+              if (asset.thumbnail && asset.thumbnail.data) {
+                try {
+                  const thumbImageData = new ImageData(
+                    new Uint8ClampedArray(asset.thumbnail.data),
+                    asset.thumbnail.width,
+                    asset.thumbnail.height
+                  );
+                  thumbDataURL = imageDataToDataURL(thumbImageData);
+                } catch (err) {
+                  console.warn('Thumbnail generation failed for asset:', asset.id, err);
+                }
+              }
+              return {
+                id: asset.id,
+                name: asset.name,
+                x: asset.x,
+                y: asset.y,
+                w: asset.w,
+                h: asset.h,
+                thumbDataURL: thumbDataURL,
+              };
+            });
 
             updateFile(fileItem.id, {
               processResult: {
@@ -168,13 +193,12 @@ function processSingleFile(fileItem, settings, preset) {
                 processedImageData: newImageData,
                 bgMask,
                 previewDataURL,
-                assets: a2,
+                assets: assetsWithThumbs,
                 processTime: Date.now(),
               },
             });
           } else if (t2 === 'error' || e2err) {
             // detectAssets 失败，只保存去背景结果
-            const previewDataURL = imageDataToDataURL(newImageData);
             updateFile(fileItem.id, {
               processResult: {
                 status: 'done',
@@ -190,7 +214,6 @@ function processSingleFile(fileItem, settings, preset) {
           resolve();
         };
 
-        // 发送 detectAssets 请求
         worker.postMessage({
           type: 'detectAssets',
           data: {
