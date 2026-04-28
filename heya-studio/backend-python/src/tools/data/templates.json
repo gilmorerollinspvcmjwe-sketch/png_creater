@@ -1,0 +1,138 @@
+[
+  {
+    "id": "sakura-basic",
+    "name": "樱花萌系基础模板",
+    "style_id": "sakura",
+    "description": "温柔浪漫的樱花粉色系模板，适合二次元萌系爱好者",
+    "component_ids": ["hero-section", "attribute-wall", "tag-group", "quote", "social-links"],
+    "style": "sakura",
+    "preview_url": "/previews/sakura-basic.png",
+    "config": {
+      "theme": {"id": "sakura"},
+      "layout": {"type": "single-column", "width": 680}
+    }
+  },
+  {
+    "id": "sakura-oshi",
+    "name": "樱花推し专属模板",
+    "style_id": "sakura",
+    "description": "为推し而生的樱花粉主页，包含推し卡片、属性墙和音乐播放器",
+    "component_ids": ["hero-section", "oshi-card", "attribute-wall", "music-player", "social-links"],
+    "style": "sakura",
+    "preview_url": "/previews/sakura-oshi.png",
+    "config": {
+      "theme": {"id": "sakura"},
+      "layout": {"type": "single-column", "width": 680},
+      "suggested_components": ["hero-section", "oshi-card", "attribute-wall", "music-player", "social-links"]
+    }
+  },
+  {
+    "id": "cyberpunk-tech",
+    "name": "赛博朋克科技模板",
+    "style_id": "cyber",
+    "description": "酷炫的赛博朋克风格，霓虹配色和科技元素，适合游戏玩家和科技爱好者",
+    "component_ids": ["hero-section", "attribute-wall", "media-card", "achievement-badges", "tag-group"],
+    "style": "cyber",
+    "preview_url": "/previews/cyberpunk-tech.png",
+    "config": {
+      "theme": {"id": "night"},
+      "layout": {"type": "single-column", "width": 680}
+    }
+  },
+  {
+    "id": "lavender-soft",
+    "name": "薰衣草温柔模板",
+    "style_id": "lavender",
+    "description": "淡紫色的温柔风格，适合文艺气质和同人创作者",
+    "component_ids": ["hero-section", "quote", "attribute-wall", "tag-group", "social-links"],
+    "style": "lavender",
+    "preview_url": "/previews/lavender-soft.png",
+    "config": {
+      "theme": {"id": "lavender"},
+      "layout": {"type": "single-column", "width": 680}
+    }
+  },
+  {
+    "id": "lavender-creator",
+    "name": "薰衣草创作者模板",
+    "style_id": "lavender",
+    "description": "紫色浪漫创作者主页，内含 CP 卡片、画廊和同人作品展示",
+    "component_ids": ["hero-section", "cp-card", "gallery", "quote", "social-links"],
+    "style": "lavender",
+    "preview_url": "/previews/lavender-creator.png",
+    "config": {
+      "theme": {"id": "lavender"},
+      "layout": {"type": "single-column", "width": 680},
+      "suggested_components": ["hero-section", "cp-card", "gallery", "quote", "social-links"]
+    }
+  },
+  {
+    "id": "mint-fresh",
+    "name": "薄荷清新模板",
+    "style_id": "mint",
+    "description": "清爽的薄荷绿色系，自然简约风格，适合追番达人",
+    "component_ids": ["hero-section", "watchlist", "media-card", "tag-group", "memorial-calendar"],
+    "style": "mint",
+    "preview_url": "/previews/mint-fresh.png",
+    "config": {
+      "theme": {"id": "mint"},
+      "layout": {"type": "single-column", "width": 680},
+      "suggested_components": ["hero-section", "watchlist", "media-card", "tag-group"]
+    }
+  },
+  {
+    "id": "night-collector",
+    "name": "暗夜收藏家模板",
+    "style_id": "night",
+    "description": "暗色系收藏家专属模板，适合展示谷子/周边收藏和漫展记录",
+    "component_ids": ["hero-section", "merchandise-card", "gallery", "achievement-badges", "support-record"],
+    "style": "night",
+    "preview_url": "/previews/night-collector.png",
+    "config": {
+      "theme": {"id": "night"},
+      "layout": {"type": "single-column", "width": 680},
+      "suggested_components": ["hero-section", "merchandise-card", "gallery", "achievement-badges", "support-record"]
+    }
+  },
+  {
+    "id": "cream-omni",
+    "name": "奶油全能模板",
+    "style_id": "cream",
+    "description": "温暖奶油色系，什么都涉猎的全能型二次元爱好者专用",
+    "component_ids": ["hero-section", "oshi-card", "watchlist", "merchandise-card", "guestbook"],
+    "style": "cream",
+    "preview_url": "/previews/cream-omni.png",
+    "config": {
+      "theme": {"id": "cream"},
+      "layout": {"type": "single-column", "width": 680},
+      "suggested_components": ["hero-section", "oshi-card", "watchlist", "merchandise-card", "guestbook"]
+    }
+  },
+  {
+    "id": "minimalist",
+    "name": "极简黑白模板",
+    "style_id": "mono",
+    "description": "黑白极简风格，突出内容本身，适合喜欢简约设计的用户",
+    "component_ids": ["hero-section", "quote", "social-links", "divider", "text"],
+    "style": "mono",
+    "preview_url": "/previews/minimalist.png",
+    "config": {
+      "theme": {"id": "mono"},
+      "layout": {"type": "single-column", "width": 680}
+    }
+  },
+  {
+    "id": "pixel-retro",
+    "name": "像素复古模板",
+    "style_id": "pixel",
+    "description": "像素风复古游戏主题，适合怀旧游戏爱好者和像素艺术创作者",
+    "component_ids": ["hero-section", "achievement-badges", "media-card", "tag-group", "gallery"],
+    "style": "pixel",
+    "preview_url": "/previews/pixel-retro.png",
+    "config": {
+      "theme": {"id": "pixel"},
+      "layout": {"type": "single-column", "width": 680},
+      "suggested_components": ["hero-section", "achievement-badges", "media-card", "tag-group"]
+    }
+  }
+]
