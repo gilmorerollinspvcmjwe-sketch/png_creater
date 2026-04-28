@@ -199,6 +199,7 @@ function processSingleFile(fileItem, settings, preset) {
               height: result.imageData.height,
               data: Array.from(result.imageData.data),
             },
+            bgMask: Array.from(result.bgMask),
             mergeDistance: 24,
             minArea: 500,
             padding: 12,

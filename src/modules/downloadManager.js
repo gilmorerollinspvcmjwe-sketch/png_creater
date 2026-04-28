@@ -68,29 +68,7 @@ async function downloadAsZip(files, namingResults) {
       if (file.processResult.assets && file.processResult.assets.length > 0) {
         for (let j = 0; j < file.processResult.assets.length; j++) {
           const asset = file.processResult.assets[j];
-          const assetCanvas = document.createElement('canvas');
-          assetCanvas.width = asset.bounds.w;
-          assetCanvas.height = asset.bounds.h;
-          const assetCtx = assetCanvas.getContext('2d');
-          const assetImageData = assetCtx.createImageData(asset.bounds.w, asset.bounds.h);
-
-          // 填充像素
-          for (const p of asset.pixels) {
-            const px = Array.isArray(p) ? p[0] : p.x;
-            const py = Array.isArray(p) ? p[1] : p.y;
-            const localX = px - asset.bounds.x;
-            const localY = py - asset.bounds.y;
-            if (localX >= 0 && localX < asset.bounds.w && localY >= 0 && localY < asset.bounds.h) {
-              const srcIdx = (py * file.processResult.processedImageData.width + px) * 4;
-              const dstIdx = (localY * asset.bounds.w + localX) * 4;
-              assetImageData.data[dstIdx] = file.processResult.processedImageData.data[srcIdx];
-              assetImageData.data[dstIdx + 1] = file.processResult.processedImageData.data[srcIdx + 1];
-              assetImageData.data[dstIdx + 2] = file.processResult.processedImageData.data[srcIdx + 2];
-              assetImageData.data[dstIdx + 3] = 255;
-            }
-          }
-
-          assetCtx.putImageData(assetImageData, 0, 0);
+          const assetCanvas = imageDataToCanvas(asset.imageData);
           const blob = await canvasToBlob(assetCanvas);
           const assetFileName = `${baseName}_${String(j + 1).padStart(3, '0')}.png`;
           imagesFolder.file(assetFileName, blob);
@@ -98,11 +76,11 @@ async function downloadAsZip(files, namingResults) {
           manifest.push({
             name: `${baseName}_${String(j + 1).padStart(3, '0')}`,
             file: assetFileName,
-            width: asset.bounds.w,
-            height: asset.bounds.h,
+            width: asset.w,
+            height: asset.h,
             originalName: file.name,
-            sourceX: asset.bounds.x,
-            sourceY: asset.bounds.y,
+            sourceX: asset.x,
+            sourceY: asset.y,
           });
         }
       } else {
@@ -223,7 +201,7 @@ export function renderDownloadPanel() {
       <div class="download-info">
         <div class="download-name">${newName}</div>
         <div class="download-meta">${hasAssets
-          ? `${assetCount} 个素材 · ${file.processResult.assets[0].bounds.w}x${file.processResult.assets[0].bounds.h} ...`
+          ? `${assetCount} 个素材 · ${file.processResult.assets[0].w}x${file.processResult.assets[0].h} ...`
           : `${file.processResult.processedImageData.width}x${file.processResult.processedImageData.height}`
         }</div>
       </div>
