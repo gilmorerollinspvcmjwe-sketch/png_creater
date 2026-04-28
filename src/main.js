@@ -732,6 +732,51 @@ function handleDetectedAssets(assets) {
   hideLoading();
 }
 
+function openPreviewModal(id) {
+  const candidate = singleState.candidates.find(c => c.id === id);
+  if (!candidate) return;
+
+  const modal = document.getElementById('preview-modal');
+  const modalImage = document.getElementById('modal-image');
+  const modalInfo = document.getElementById('modal-info');
+
+  // 从整图提取高清素材
+  const canvas = document.createElement('canvas');
+  canvas.width = candidate.w;
+  canvas.height = candidate.h;
+  const ctx = canvas.getContext('2d');
+
+  const srcData = singleState.processedImageData;
+  const srcW = srcData?.width || 0;
+  if (srcData) {
+    const imageData = ctx.createImageData(candidate.w, candidate.h);
+    for (let ay = 0; ay < candidate.h; ay++) {
+      for (let ax = 0; ax < candidate.w; ax++) {
+        const srcX = candidate.x + ax;
+        const srcY = candidate.y + ay;
+        if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+          const srcIdx = (srcY * srcW + srcX) * 4;
+          const dstIdx = (ay * candidate.w + ax) * 4;
+          imageData.data[dstIdx] = srcData.data[srcIdx];
+          imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+          imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+          imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  modalImage.src = canvas.toDataURL();
+  modalInfo.textContent = `${candidate.name} · ${candidate.w} × ${candidate.h} · (${candidate.x}, ${candidate.y})`;
+  modal.hidden = false;
+}
+
+function closePreviewModal() {
+  const modal = document.getElementById('preview-modal');
+  if (modal) modal.hidden = true;
+}
+
 function renderCandidates() {
   singleElements.candidatesGrid.innerHTML = '';
 
@@ -778,8 +823,9 @@ function renderCandidates() {
     }
 
     card.innerHTML = `
-      <div class="candidate-preview">
+      <div class="candidate-preview" data-candidate-id="${candidate.id}">
         <img src="${canvas.toDataURL()}" alt="${candidate.name}">
+        <div class="preview-zoom-icon">🔍</div>
       </div>
       <div class="candidate-info">
         <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
@@ -793,6 +839,22 @@ function renderCandidates() {
 
     singleElements.candidatesGrid.appendChild(card);
   }
+
+  // 大图预览点击事件
+  document.querySelectorAll('.candidate-preview').forEach(preview => {
+    preview.addEventListener('click', (e) => {
+      if (e.target.closest('.candidate-card').classList.contains('selected')) return;
+      const id = parseInt(preview.dataset.candidateId);
+      openPreviewModal(id);
+    });
+  });
+
+  // 关闭模态框事件
+  document.getElementById('modal-close')?.addEventListener('click', closePreviewModal);
+  document.getElementById('modal-overlay')?.addEventListener('click', closePreviewModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePreviewModal();
+  });
 
   document.querySelectorAll('.candidate-name-input').forEach(input => {
     input.addEventListener('change', (e) => {
