@@ -348,13 +348,18 @@ function handleFile(file) {
       singleState.fileWidth = img.width;
       singleState.fileHeight = img.height;
 
-      singleElements.originalPreview.src = e.target.result;
-      singleElements.originalPreview.hidden = false;
-      singleElements.uploadArea.querySelector('.upload-placeholder').style.display = 'none';
+      if (singleElements.originalPreview) {
+        singleElements.originalPreview.src = e.target.result;
+        singleElements.originalPreview.hidden = false;
+      }
+      if (singleElements.uploadArea) {
+        const placeholder = singleElements.uploadArea.querySelector('.upload-placeholder');
+        if (placeholder) placeholder.style.display = 'none';
+      }
 
-      singleElements.fileName.textContent = file.name;
-      singleElements.fileSize.textContent = formatFileSize(file.size);
-      singleElements.fileDimension.textContent = `${img.width} x ${img.height}`;
+      if (singleElements.fileName) singleElements.fileName.textContent = file.name;
+      if (singleElements.fileSize) singleElements.fileSize.textContent = formatFileSize(file.size);
+      if (singleElements.fileDimension) singleElements.fileDimension.textContent = `${img.width} x ${img.height}`;
 
       if (singleElements.replaceBtn) singleElements.replaceBtn.disabled = false;
       if (singleElements.processBtn) singleElements.processBtn.disabled = false;
@@ -377,6 +382,12 @@ function handleFile(file) {
 function handleImageClick(e) {
   // 异形模式取色
   if (singleState.pickMode) {
+    if (!singleState.originalImageData) {
+      showToast('像素数据未准备好，请重新上传图片');
+      return;
+    }
+    if (!singleElements.originalPreview) return;
+
     const rect = singleElements.originalPreview.getBoundingClientRect();
     const x = Math.floor((e.clientX - rect.left) / rect.width * singleState.fileWidth);
     const y = Math.floor((e.clientY - rect.top) / rect.height * singleState.fileHeight);
