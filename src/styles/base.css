@@ -1,0 +1,103 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-base: #0d1117;
+  --bg-surface: #161b22;
+  --bg-elevated: #21262d;
+  --bg-inset: #010409;
+  --border-default: #30363d;
+  --border-muted: #21262d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --accent-bg: rgba(56, 139, 253, 0.15);
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+  --info: #58a6ff;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Consolas', 'Courier New', monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--bg-inset);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 6px var(--accent-bg);
+}
+
+input[type="number"],
+input[type="text"],
+select {
+  padding: 6px 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+  -webkit-appearance: none;
+}

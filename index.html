@@ -3,128 +3,568 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>游戏 UI 素材自动抠图工具</title>
-  <link rel="stylesheet" href="/src/styles.css">
+  <title>游戏UI素材工具</title>
+  <link rel="stylesheet" href="/src/styles/base.css">
+  <link rel="stylesheet" href="/src/styles/components.css">
+  <link rel="stylesheet" href="/src/styles/layout.css">
+  <link rel="stylesheet" href="/src/styles/single-mode.css">
+  <link rel="stylesheet" href="/src/styles/batch-mode.css">
+  <link rel="stylesheet" href="/src/styles/split-merge-mode.css">
+  <link rel="stylesheet" href="/src/styles/magnifier.css">
 </head>
 <body>
   <div id="app">
     <header class="header">
-      <h1>游戏 UI 素材自动抠图</h1>
-      <div class="header-info">
-        <span id="file-name">未上传图片</span>
-        <span id="file-size"></span>
-        <span id="file-dimension"></span>
+      <div class="header-logo">◆ 游戏UI素材工具</div>
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="single">✂️ 抠图</button>
+        <button class="mode-tab" data-mode="batch">📦 批量</button>
+        <button class="mode-tab" data-mode="split">🔧 拆分</button>
+        <button class="mode-tab" data-mode="merge">🔗 合并</button>
       </div>
-      <div class="header-actions">
+      <div class="header-right">
+        <span id="file-name" style="font-size:12px;color:var(--text-secondary)"></span>
+        <span id="file-size" style="font-size:12px;color:var(--text-muted)"></span>
+        <span id="file-dimension" style="font-size:12px;color:var(--text-muted)"></span>
         <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" hidden>
-        <button id="upload-btn" class="btn btn-primary">上传图片</button>
-        <button id="replace-btn" class="btn btn-secondary" disabled>替换图片</button>
+        <button id="upload-btn" class="btn btn-primary btn-sm" style="display:none">上传图片</button>
+        <button id="replace-btn" class="btn btn-secondary btn-sm" disabled>替换图片</button>
       </div>
     </header>
 
     <main class="main-content">
-      <section class="left-panel">
-        <div class="upload-area" id="upload-area">
-          <div class="upload-placeholder">
-            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            <p>点击或拖拽上传图片</p>
-            <p class="upload-hint">支持 PNG、JPG、WEBP 格式</p>
-          </div>
-          <img id="original-preview" class="original-preview" hidden>
-        </div>
 
-        <div class="controls">
-          <div class="control-group">
-            <label for="bg-mode">背景模式</label>
-            <select id="bg-mode">
-              <option value="auto">自动</option>
-              <option value="white">白底抠图</option>
-              <option value="solid">纯色底抠图</option>
-              <option value="checkerboard">棋盘格抠图</option>
-              <option value="keep-transparent">保留透明</option>
-            </select>
+      <!-- ===== 单图抠图模式 ===== -->
+      <div class="mode-panel active" id="single-mode-panel" style="flex-direction:row">
+        <section class="left-panel">
+          <div class="upload-area" id="upload-area">
+            <div class="upload-placeholder">
+              <div class="icon">📁</div>
+              <p>点击或拖拽上传图片</p>
+              <p class="hint">支持 PNG、JPG、WEBP 格式</p>
+            </div>
+            <img id="original-preview" class="original-preview" hidden>
+            <button id="clear-upload-btn" class="clear-upload-btn" title="清除图片" hidden>✕</button>
           </div>
 
-          <div class="control-group">
-            <label for="tolerance">容差: <span id="tolerance-value">80</span></label>
-            <input type="range" id="tolerance" min="0" max="300" value="80">
-          </div>
+          <div class="controls">
+            <div class="section collapsible-section">
+              <div class="section-title collapsible-title" data-target="cutout-settings">
+                <span class="collapse-icon">▼</span>
+                抠图设置
+              </div>
+            </div>
+            <div class="collapsible-content" id="cutout-settings">
 
-          <div class="control-group">
-            <label for="edge-removal">去边强度: <span id="edge-removal-value">15</span></label>
-            <input type="range" id="edge-removal" min="0" max="50" value="15">
-          </div>
+            <div class="control-group">
+              <label for="bg-mode">
+                背景模式
+                <span class="tooltip-icon" title="自动：自动检测背景色&#10;白底：白色背景抠图&#10;纯色：手动取色抠图&#10;棋盘格：透明/半透明背景&#10;保留透明：不处理透明通道&#10;异形抠图：复杂背景精确抠图">?</span>
+              </label>
+              <select id="bg-mode">
+                <option value="auto">自动</option>
+                <option value="white">白底抠图</option>
+                <option value="solid">纯色底抠图</option>
+                <option value="checkerboard">棋盘格抠图</option>
+                <option value="keep-transparent">保留透明</option>
+                <option value="irregular">🔹 异形抠图</option>
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="merge-distance">合并距离: <span id="merge-distance-value">24</span>px</label>
-            <input type="range" id="merge-distance" min="0" max="64" value="24">
-          </div>
+            <!-- 普通模式控件 -->
+            <div id="normal-mode-controls">
+              <div class="control-group">
+                <label for="tolerance">
+                  容差
+                  <span class="tooltip-icon" title="背景色识别范围&#10;值越大，更多相近颜色被识别为背景&#10;值越小，抠图越精确但可能有残留">?</span>
+                  <span class="range-val" id="tolerance-value">80</span>
+                </label>
+                <input type="range" id="tolerance" min="0" max="300" value="80">
+              </div>
 
-          <div class="control-group">
-            <label for="min-area">最小面积: <span id="min-area-value">1000</span>px</label>
-            <input type="range" id="min-area" min="100" max="5000" value="1000" step="100">
-          </div>
+              <div class="control-group">
+                <label for="edge-removal">
+                  去边强度
+                  <span class="tooltip-icon" title="去除素材边缘的背景色残留&#10;值越大，去边效果越明显&#10;但可能影响素材边缘细节">?</span>
+                  <span class="range-val" id="edge-removal-value">15</span>
+                </label>
+                <input type="range" id="edge-removal" min="0" max="50" value="15">
+              </div>
 
-          <div class="control-group">
-            <label for="padding">安全边距: <span id="padding-value">12</span>px</label>
-            <input type="range" id="padding" min="0" max="32" value="12">
-          </div>
+              <div class="control-group">
+                <label for="dilate-erode">
+                  膨胀/腐蚀
+                  <span class="tooltip-icon" title="调整素材边缘大小&#10;正值：向外膨胀，扩大素材&#10;负值：向内腐蚀，缩小素材&#10;0：不处理">?</span>
+                  <span class="range-val" id="dilate-erode-value">0</span>
+                </label>
+                <input type="range" id="dilate-erode" min="-5" max="10" value="0">
+              </div>
 
-          <div class="control-actions">
-            <button id="process-btn" class="btn btn-primary" disabled>开始抠图</button>
-          </div>
-          <div class="control-actions">
-            <button id="color-picker-btn" class="btn btn-secondary">点击背景取色</button>
-          </div>
-        </div>
-      </section>
+              <div class="control-group">
+                <label for="edge-smooth">
+                  边缘平滑
+                  <span class="tooltip-icon" title="让素材边缘更柔和&#10;0：关闭（硬边缘）&#10;1：轻度平滑&#10;2：中度平滑&#10;3：强度平滑（可能丢失细节）">?</span>
+                  <span class="range-val" id="edge-smooth-value">0</span>
+                </label>
+                <input type="range" id="edge-smooth" min="0" max="3" value="0">
+                <small class="hint">0=关闭, 1=轻度, 2=中度, 3=强度</small>
+              </div>
 
-      <section class="right-panel">
-        <div class="preview-section">
-          <div class="preview-controls">
-            <label class="checkbox-label">
-              <input type="checkbox" id="dark-bg-toggle">
-              深色背景预览
+            </div>
+
+            <div class="section collapsible-section" style="margin-top:12px">
+              <div class="section-title collapsible-title" data-target="asset-settings">
+                <span class="collapse-icon">▼</span>
+                素材识别
+              </div>
+            </div>
+            <div class="collapsible-content" id="asset-settings">
+
+              <div class="control-group">
+                <label for="merge-distance">
+                  合并距离
+                  <span class="tooltip-icon" title="相近素材合并为一个的阈值&#10;值越大，越容易把碎片合并&#10;但可能把相邻素材错误合并&#10;值=0：不合并">?</span>
+                  <span class="range-val" id="merge-distance-value">24</span>
+                </label>
+                <input type="range" id="merge-distance" min="0" max="64" value="24">
+              </div>
+
+              <div class="control-group">
+                <label for="min-area">
+                  最小面积
+                  <span class="tooltip-icon" title="忽略小于此面积的碎片&#10;单位：像素&#10;过滤噪点和小碎块">?</span>
+                  <span class="range-val" id="min-area-value">1000</span>
+                </label>
+                <input type="range" id="min-area" min="100" max="5000" value="1000" step="100">
+              </div>
+
+              <div class="control-group">
+                <label for="padding">
+                  安全边距
+                  <span class="tooltip-icon" title="素材边界向外扩展的像素数&#10;防止边缘像素被裁剪掉&#10;建议值：8-16">?</span>
+                  <span class="range-val" id="padding-value">12</span>
+                </label>
+                <input type="range" id="padding" min="0" max="32" value="12">
+              </div>
+
+              <label class="checkbox-row" style="margin-top:8px">
+                <input type="checkbox" id="deduplicate-assets">
+                去重检测
+                <span class="tooltip-icon" title="自动检测并合并相似素材&#10;适用：同一角色因阴影/光效被拆成多个碎片&#10;基于边界框重叠和像素相似度判断&#10;相似度阈值 90%">?</span>
+              </label>
+            </div>
+
+            <!-- 异形抠图专用控件 -->
+            <div id="irregular-mode-controls" style="display:none">
+              <div class="section"><div class="section-title">颜色标注</div></div>
+              <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">先标注背景色和轮廓色，再检测</p>
+
+              <div class="control-group">
+                <label>背景色</label>
+                <div class="color-pick-row">
+                  <input type="color" id="ir-bg-color-picker" value="#ffffff">
+                  <span class="color-hex" id="ir-bg-color-status">未取色</span>
+                  <button class="btn btn-sm btn-secondary" id="ir-bg-pick-btn">🧪 取色</button>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label>轮廓色（可选）</label>
+                <div class="color-pick-row">
+                  <input type="color" id="ir-outline-color-picker" value="#000000">
+                  <span class="color-hex" id="ir-outline-color-status">未取色</span>
+                  <button class="btn btn-sm btn-secondary" id="ir-outline-pick-btn">🧪 取色</button>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label>轮廓容差 <span class="range-val" id="outline-tol-val">80</span></label>
+                <input type="range" id="outline-tolerance" min="1" max="100" value="80">
+              </div>
+
+              <div class="control-group">
+                <label>检测灵敏度 <span class="range-val" id="detect-sens-val">30</span></label>
+                <input type="range" id="detect-sensitivity" min="1" max="100" value="30">
+              </div>
+
+              <div class="control-group">
+                <label>最小面积 <span class="range-val" id="ir-min-area-val">100</span></label>
+                <input type="range" id="ir-min-area" min="10" max="5000" value="100" step="10">
+              </div>
+
+              <div class="control-group">
+                <label>轮廓外扩 <span class="range-val" id="dilate-px-val">-1</span></label>
+                <input type="range" id="dilate-px" min="-5" max="10" value="-1">
+              </div>
+
+              <!-- 内轮廓抠图区域（检测完成后显示） -->
+              <div id="inner-contour-section" style="display:none">
+                <div class="section" style="margin-top:12px"><div class="section-title">内轮廓抠图</div></div>
+                <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">去除已检测区域内部的背景色</p>
+
+                <div class="control-group">
+                  <label>内部背景色</label>
+                  <div class="color-pick-row">
+                    <input type="color" id="inner-bg-color-picker" value="#ffffff">
+                    <span class="color-hex" id="inner-bg-color-status">未取色</span>
+                    <button class="btn btn-sm btn-secondary" id="inner-bg-pick-btn">🧪 取色</button>
+                  </div>
+                </div>
+
+                <div class="control-group">
+                  <label>内部轮廓色（可选）</label>
+                  <div class="color-pick-row">
+                    <input type="color" id="inner-outline-color-picker" value="#000000">
+                    <span class="color-hex" id="inner-outline-color-status">未取色</span>
+                    <button class="btn btn-sm btn-secondary" id="inner-outline-pick-btn">🧪 取色</button>
+                  </div>
+                </div>
+
+                <div class="control-group">
+                  <label>内部容差 <span class="range-val" id="inner-tol-val">50</span></label>
+                  <input type="range" id="inner-tolerance" min="1" max="100" value="50">
+                </div>
+
+                <div class="control-group">
+                  <label>内扣外扩 <span class="range-val" id="inner-dilate-px-val">-1</span></label>
+                  <input type="range" id="inner-dilate-px" min="-5" max="10" value="-1">
+                </div>
+
+                <button class="btn btn-primary btn-full" id="apply-inner-btn" style="margin-top:6px">🕳️ 去除内部背景</button>
+              </div>
+            </div>
+
+            <div class="control-actions">
+              <button id="process-btn" class="btn btn-primary btn-full" disabled>开始抠图</button>
+            </div>
+            <div class="control-actions">
+              <button id="color-picker-btn" class="btn btn-secondary btn-full">🧪 点击取色</button>
+            </div>
+            <div class="control-group" style="margin-top:8px">
+              <label for="output-format">
+                输出格式
+                <span class="tooltip-icon" title="PNG：无损透明，文件较大&#10;WebP：高压缩率，文件较小&#10;建议使用 PNG 保证质量">?</span>
+              </label>
+              <select id="output-format">
+                <option value="png">PNG (无损)</option>
+                <option value="webp">WebP</option>
+              </select>
+            </div>
+            <label class="checkbox-row" style="margin-top:4px">
+              <input type="checkbox" id="trim-transparent" checked>
+              裁剪透明边缘
+              <span class="tooltip-icon" title="去除素材四周的透明像素&#10;使素材紧凑&#10;取消勾选保留原始尺寸">?</span>
             </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="light-bg-toggle" checked>
-              浅色背景预览
-            </label>
-          </div>
-          <div class="preview-container" id="preview-container">
-            <img id="transparent-preview" class="transparent-preview" hidden>
-          </div>
-        </div>
 
-        <div class="candidates-section">
-          <h3>候选素材 (<span id="candidate-count">0</span>)</h3>
-          <div class="candidates-grid" id="candidates-grid">
-            <div class="empty-state">
-              <p>上传并处理图片后将显示候选素材</p>
+            <div class="section collapsible-section" style="margin-top:16px">
+              <div class="section-title collapsible-title" data-target="export-settings">
+                <span class="collapse-icon">▼</span>
+                数据导出
+              </div>
+            </div>
+            <div class="collapsible-content" id="export-settings">
+            <div class="control-group">
+              <label class="checkbox-row">
+                <input type="checkbox" id="export-json-hash" checked>
+                TexturePacker JSON (Hash)
+                <span class="tooltip-icon" title="Unity/Cocos2d 常用格式&#10;帧数据以文件名为 key&#10;适合程序化加载">?</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="export-json-array">
+                TexturePacker JSON (Array)
+                <span class="tooltip-icon" title="Phaser 常用格式&#10;帧数据以数组形式存储&#10;适合需要遍历的场景">?</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="export-css">
+                CSS Sprite
+                <span class="tooltip-icon" title="生成 CSS 背景定位代码&#10;适合 Web 开发&#10;直接使用 class 引用素材">?</span>
+              </label>
             </div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
 
-    <footer class="footer">
-      <div class="footer-actions">
-        <button id="export-selected-btn" class="btn btn-secondary" disabled>导出选中</button>
-        <button id="export-all-btn" class="btn btn-primary" disabled>导出全部</button>
-        <button id="download-zip-btn" class="btn btn-primary" disabled>下载 ZIP</button>
+        <!-- 大图预览模态框 -->
+        <div id="preview-modal" class="preview-modal" hidden>
+          <div class="modal-overlay" id="modal-overlay"></div>
+          <div class="modal-content">
+            <button class="modal-close" id="modal-close">✕</button>
+            <img id="modal-image" src="" alt="">
+            <div class="modal-info" id="modal-info"></div>
+          </div>
+        </div>
+
+        <section class="right-panel">
+          <div class="preview-section">
+            <div class="preview-controls">
+              <label class="checkbox-row" style="margin-bottom:0">
+                <input type="checkbox" id="dark-bg-toggle"> 深色背景
+              </label>
+              <label class="checkbox-row" style="margin-bottom:0">
+                <input type="checkbox" id="light-bg-toggle" checked> 浅色背景
+              </label>
+            </div>
+            <div class="preview-container checker-bg" id="preview-container">
+              <img id="transparent-preview" class="transparent-preview" hidden>
+            </div>
+          </div>
+
+          <div class="candidates-section">
+            <h3>候选素材 (<span id="candidate-count">0</span>)
+              <span style="flex:1"></span>
+              <button class="btn btn-ghost btn-sm" id="select-all-candidates">全选</button>
+              <button class="btn btn-ghost btn-sm" id="invert-candidates">反选</button>
+            </h3>
+            <div class="candidates-grid" id="candidates-grid">
+              <div class="empty-state">
+                <div class="icon">🖼️</div>
+                <p>上传并处理图片后将显示候选素材</p>
+              </div>
+            </div>
+          </div>
+
+          <footer class="footer">
+            <div class="footer-actions">
+              <button id="export-selected-btn" class="btn btn-secondary btn-sm" disabled>导出选中</button>
+              <button id="export-all-btn" class="btn btn-primary btn-sm" disabled>导出全部</button>
+              <button id="download-zip-btn" class="btn btn-success btn-sm" disabled>下载 ZIP</button>
+            </div>
+          </footer>
+        </section>
       </div>
-    </footer>
+
+      <!-- ===== 批量处理模式 ===== -->
+      <div class="mode-panel" id="batch-mode-panel" style="flex-direction:column">
+        <div class="batch-step-nav">
+          <button class="batch-step-btn active" data-step="1"><span class="step-number">①</span><span class="step-label">上传</span></button>
+          <span style="color:var(--text-muted)">→</span>
+          <button class="batch-step-btn" data-step="2"><span class="step-number">②</span><span class="step-label">抠图</span></button>
+          <span style="color:var(--text-muted)">→</span>
+          <button class="batch-step-btn" data-step="3"><span class="step-number">③</span><span class="step-label">命名</span></button>
+          <span style="color:var(--text-muted)">→</span>
+          <button class="batch-step-btn" data-step="4"><span class="step-number">④</span><span class="step-label">下载</span></button>
+        </div>
+
+        <section class="batch-step-panel active" id="batch-step-1">
+          <div class="panel-header"><h2>① 批量上传</h2><span class="panel-stats" id="upload-stats">暂无文件</span></div>
+          <div class="upload-zone" id="upload-drop-zone">
+            <div class="icon">📁</div>
+            <p>点击或拖拽上传图片</p>
+            <p class="hint">支持 PNG、JPG、WEBP，单文件不超过 10MB</p>
+            <input type="file" id="batch-file-input" accept=".png,.jpg,.jpeg,.webp" multiple>
+          </div>
+          <div class="upload-toolbar">
+            <button class="btn btn-secondary btn-sm" id="add-more-btn">添加更多</button>
+            <button class="btn btn-ghost btn-sm" id="upload-select-all-btn">全选</button>
+            <button class="btn btn-ghost btn-sm" id="upload-clear-all-btn">清空</button>
+          </div>
+          <div class="file-queue" id="file-queue-list"><div class="empty-state"><p>暂无上传文件</p></div></div>
+          <div class="step-footer"><div></div><button class="btn btn-primary" id="to-step-2-btn">下一步：批量抠图 →</button></div>
+        </section>
+
+        <section class="batch-step-panel" id="batch-step-2">
+          <div class="panel-header"><h2>② 批量抠图</h2></div>
+          <div class="process-layout">
+            <div class="process-settings">
+              <div class="control-group"><label for="batch-bg-mode">背景模式</label><select id="batch-bg-mode"><option value="auto">自动</option><option value="white">白底抠图</option><option value="solid">纯色底抠图</option><option value="checkerboard">棋盘格抠图</option><option value="keep-transparent">保留透明</option></select></div>
+              <div class="control-group"><label>抠图精度</label><div class="radio-group"><label class="radio-label"><input type="radio" name="precision" value="high"> 高</label><label class="radio-label"><input type="radio" name="precision" value="medium" checked> 中</label><label class="radio-label"><input type="radio" name="precision" value="low"> 低</label></div></div>
+              <div class="control-actions"><button class="btn btn-primary btn-full" id="start-process-btn">开始批量抠图</button></div>
+              <div class="control-actions"><button class="btn btn-danger btn-full" id="cancel-process-btn" style="display:none">取消处理</button></div>
+              <div class="progress-section"><div class="progress-bar-track"><div class="progress-bar-fill" id="process-progress-bar" style="width:0%"></div></div><div class="progress-text" id="process-progress-text">等待开始...</div></div>
+            </div>
+            <div class="process-results"><h3>处理结果</h3><div class="process-grid" id="process-result-grid"><div class="empty-state"><p>请先上传图片</p></div></div></div>
+          </div>
+          <div class="step-footer"><button class="btn btn-secondary" id="back-to-step-1-btn">← 上一步</button><button class="btn btn-primary" id="to-step-3-btn">下一步：批量命名 →</button></div>
+        </section>
+
+        <section class="batch-step-panel" id="batch-step-3">
+          <div class="panel-header"><h2>③ 批量命名</h2></div>
+          <div class="naming-config">
+            <div class="control-group"><label for="naming-template">命名模板</label><input type="text" id="naming-template" value="{name}" class="naming-template-input" placeholder="如：icon_{index}_{name}"></div>
+            <div class="var-buttons"><span class="var-label">变量：</span><button class="btn btn-sm btn-var var-btn" data-var="{name}">{name}</button><button class="btn btn-sm btn-var var-btn" data-var="{index}">{index}</button><button class="btn btn-sm btn-var var-btn" data-var="{date}">{date}</button><button class="btn btn-sm btn-var var-btn" data-var="{time}">{time}</button><button class="btn btn-sm btn-var var-btn" data-var="{timestamp}">{ts}</button><button class="btn btn-sm btn-var var-btn" data-var="{width}">{w}</button><button class="btn btn-sm btn-var var-btn" data-var="{height}">{h}</button></div>
+            <div class="naming-options"><div class="inline-group"><label for="naming-start-index" style="font-size:12px;color:var(--text-secondary)">起始值</label><input type="number" id="naming-start-index" value="1" min="1" max="9999" class="naming-number-input"></div><div class="inline-group"><label for="naming-digit-count" style="font-size:12px;color:var(--text-secondary)">位数</label><input type="number" id="naming-digit-count" value="3" min="1" max="6" class="naming-number-input"></div></div>
+          </div>
+          <div style="margin-bottom:8px"><h3 style="font-size:14px">命名预览</h3></div>
+          <div class="naming-preview-list" id="naming-preview-list"><div class="empty-state"><p>请先完成抠图处理</p></div></div>
+          <div class="step-footer"><button class="btn btn-secondary" id="back-to-step-2-btn">← 上一步</button><button class="btn btn-primary" id="to-step-4-btn">下一步：批量下载 →</button></div>
+        </section>
+
+        <section class="batch-step-panel" id="batch-step-4">
+          <div class="panel-header"><h2>④ 批量下载</h2><span class="panel-stats" id="download-stats"></span></div>
+          <div class="download-config"><div class="control-group"><label>下载格式</label><div class="radio-group"><label class="radio-label"><input type="radio" name="download-format" value="zip" checked> ZIP</label><label class="radio-label"><input type="radio" name="download-format" value="individual"> 单文件</label></div></div><div class="download-toolbar"><button class="btn btn-ghost btn-sm" id="download-select-all-btn">全选</button><button class="btn btn-ghost btn-sm" id="download-deselect-all-btn">取消全选</button></div></div>
+          <div class="download-file-list" id="download-file-list"><div class="empty-state"><p>请先完成抠图处理</p></div></div>
+          <div class="download-progress-section" id="download-progress-section" style="display:none"><div class="progress-bar-track"><div class="progress-bar-fill" id="download-progress-bar" style="width:0%"></div></div><div class="progress-text" id="download-progress-text">准备下载...</div></div>
+          <div class="step-footer"><button class="btn btn-secondary" id="back-to-step-3-btn">← 上一步</button><button class="btn btn-success btn-lg" id="batch-download-btn">开始批量下载</button></div>
+        </section>
+      </div>
+
+      <!-- ===== 拆分模式 ===== -->
+      <div class="mode-panel" id="split-mode-panel" style="flex-direction:row">
+        <div class="sidebar">
+          <div class="section">
+            <div class="section-title">上传图片</div>
+            <div class="upload-zone" id="split-upload-zone">
+              <div class="icon">📁</div>
+              <p>点击或拖拽上传素材图</p>
+              <p class="hint">PNG / JPG / WebP</p>
+              <input type="file" id="split-file-input" accept="image/*">
+            </div>
+          </div>
+
+          <div class="sub-tabs">
+            <button class="sub-tab" data-split-mode="rect">▭ 矩形</button>
+            <button class="sub-tab active" data-split-mode="irregular">✦ 异形</button>
+          </div>
+
+          <div class="sub-panel" id="split-rect-panel">
+            <div class="section">
+              <div class="section-title">背景移除</div>
+              <label class="checkbox-row"><input type="checkbox" id="split-bg-remove-toggle"> 启用背景移除</label>
+              <div id="split-bg-remove-options" style="display:none">
+                <div class="control-group"><label>容差 <span class="range-val" id="split-bg-tol-val">30</span></label><input type="range" id="split-bg-tolerance" min="1" max="100" value="30"></div>
+                <div class="control-group"><label>背景色</label><div class="color-pick-row"><input type="color" id="split-bg-color" value="#ffffff"><span class="color-hex" id="split-bg-color-hex">#FFFFFF</span><button class="btn btn-sm btn-secondary pick-btn" id="split-bg-pick-btn">🧪 取色</button></div></div>
+                <button class="btn btn-primary btn-full" id="split-apply-bg-remove" style="margin-top:6px">✨ 应用背景移除</button>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-title">自动网格</div>
+              <div class="control-group"><label>列数 <span class="range-val" id="split-grid-cols-val">4</span></label><input type="range" id="split-grid-cols" min="1" max="20" value="4"></div>
+              <div class="control-group"><label>行数 <span class="range-val" id="split-grid-rows-val">4</span></label><input type="range" id="split-grid-rows" min="1" max="20" value="4"></div>
+              <button class="btn btn-secondary btn-full" id="split-auto-grid-btn">📐 生成网格选框</button>
+            </div>
+            <div class="section">
+              <div class="section-title">手动选框</div>
+              <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">在图片上拖拽绘制矩形选框</p>
+              <div class="btn-group"><button class="btn btn-ghost btn-sm" id="split-clear-boxes-btn">🗑️ 清空</button><button class="btn btn-ghost btn-sm" id="split-undo-box-btn">↩️ 撤销</button></div>
+            </div>
+          </div>
+
+          <div class="sub-panel active" id="split-irregular-panel">
+            <div class="section">
+              <div class="section-title">颜色标注</div>
+              <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">先标注背景色和轮廓色，再检测</p>
+              <div class="control-group"><label>背景色</label><div class="color-pick-row"><input type="color" id="ir-bg-color" value="#ffffff"><span class="color-hex" id="ir-bg-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-ir-bg-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>轮廓色（可选）</label><div class="color-pick-row"><input type="color" id="ir-outline-color" value="#000000"><span class="color-hex" id="ir-outline-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-ir-outline-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>轮廓容差 <span class="range-val" id="split-outline-tol-val">80</span></label><input type="range" id="split-outline-tolerance" min="1" max="100" value="80"></div>
+              <div class="control-group"><label>检测灵敏度 <span class="range-val" id="split-detect-sens-val">30</span></label><input type="range" id="split-detect-sensitivity" min="1" max="100" value="30"></div>
+              <div class="control-group"><label>最小面积 <span class="range-val" id="split-min-area-val">100</span></label><input type="range" id="split-min-area" min="10" max="5000" value="100" step="10"></div>
+              <div class="control-group"><label>轮廓外扩 <span class="range-val" id="split-dilate-px-val">-1</span></label><input type="range" id="split-dilate-px" min="-5" max="10" value="-1"></div>
+              <button class="btn btn-primary btn-full" id="ir-detect-btn" style="margin-top:6px">🧠 异形检测素材</button>
+            </div>
+
+            <div class="section" id="ir-inner-bg-section" style="display:none">
+              <div class="section-title">内轮廓抠图</div>
+              <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">去除已检测区域内部的背景色</p>
+              <div class="control-group"><label>内部背景色</label><div class="color-pick-row"><input type="color" id="inner-bg-color" value="#ffffff"><span class="color-hex" id="inner-bg-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-inner-bg-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>内部轮廓色（可选）</label><div class="color-pick-row"><input type="color" id="inner-outline-color" value="#000000"><span class="color-hex" id="inner-outline-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-inner-outline-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>内部容差 <span class="range-val" id="split-inner-tol-val">50</span></label><input type="range" id="split-inner-tolerance" min="1" max="100" value="50"></div>
+              <div class="control-group"><label>内扣外扩 <span class="range-val" id="split-inner-dilate-px-val">-1</span></label><input type="range" id="split-inner-dilate-px" min="-5" max="10" value="-1"></div>
+              <button class="btn btn-primary btn-full" id="ir-apply-inner-btn" style="margin-top:6px">🕳️ 去除内部背景</button>
+            </div>
+
+            <div class="section">
+              <div class="section-title">检测到的区域</div>
+              <div class="btn-group" style="margin-bottom:6px"><button class="btn btn-ghost btn-sm" id="ir-select-all-btn">☑ 全选</button><button class="btn btn-ghost btn-sm" id="ir-deselect-all-btn">☐ 全不选</button><button class="btn btn-ghost btn-sm" id="ir-invert-btn">⇄ 反选</button></div>
+              <div class="region-list" id="region-list"><p style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0">点击上方按钮开始检测</p></div>
+              <div class="btn-group" style="margin-top:6px"><button class="btn btn-ghost btn-sm" id="ir-clear-btn">🗑️ 清空</button><button class="btn btn-ghost btn-sm" id="ir-undo-btn">↩️ 撤销</button></div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:8px">
+            <div class="section-title">输出设置</div>
+            <div class="control-group"><label for="split-format">格式</label><select id="split-format" style="width:100%"><option value="png">PNG (无损)</option><option value="webp">WebP</option></select></div>
+            <label class="checkbox-row"><input type="checkbox" id="split-trim" checked> 裁剪透明边缘</label>
+          </div>
+          <div class="section">
+            <button class="btn btn-success btn-full" id="split-download-btn" disabled>📦 拆分并下载 (ZIP)</button>
+          </div>
+        </div>
+
+        <div class="workspace" id="split-workspace">
+          <div class="empty-state" id="split-empty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div class="icon">🖼️</div>
+            <p>上传一张游戏素材图开始拆分</p>
+            <p class="sub">Ctrl+V 也可粘贴图片</p>
+          </div>
+          <div class="canvas-wrapper" id="split-canvas-wrapper" style="display:none;flex:1;display:flex;align-items:center;justify-content:center;position:relative">
+            <canvas id="split-main-canvas"></canvas>
+            <canvas class="overlay-canvas" id="split-overlay-canvas"></canvas>
+          </div>
+          <div class="info-bar" id="split-info-bar" style="display:none">
+            <span>尺寸: <span class="val" id="split-info-size">-</span></span>
+            <span id="split-info-label">区域: <span class="val" id="split-info-count">0</span></span>
+            <span>缩放: <span class="val" id="split-info-zoom">100%</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 合并模式 ===== -->
+      <div class="mode-panel" id="merge-mode-panel" style="flex-direction:row">
+        <div class="sidebar">
+          <div class="section">
+            <div class="section-title">上传素材</div>
+            <div class="upload-zone" id="merge-upload-zone">
+              <div class="icon">📁</div>
+              <p>点击或拖拽上传多张素材</p>
+              <p class="hint">支持多选 PNG / JPG / WebP</p>
+              <input type="file" id="merge-files-input" accept="image/*" multiple>
+            </div>
+            <p id="merge-count" style="font-size:12px;color:var(--text-secondary);text-align:center"></p>
+          </div>
+          <div class="section">
+            <div class="section-title">排列设置</div>
+            <div class="control-group"><label>每行列数 <span class="range-val" id="merge-cols-val">4</span></label><input type="range" id="merge-cols" min="1" max="20" value="4"></div>
+            <div class="control-group"><label>水平间距 <span class="range-val" id="merge-pad-x-val">0</span>px</label><input type="range" id="merge-pad-x" min="0" max="32" value="0"></div>
+            <div class="control-group"><label>垂直间距 <span class="range-val" id="merge-pad-y-val">0</span>px</label><input type="range" id="merge-pad-y" min="0" max="32" value="0"></div>
+            <div class="control-group"><label>内边距 <span class="range-val" id="merge-padding-val">0</span>px</label><input type="range" id="merge-padding" min="0" max="64" value="0"></div>
+            <label class="checkbox-row"><input type="checkbox" id="merge-uniform" checked> 统一单元格大小</label>
+            <label class="checkbox-row"><input type="checkbox" id="merge-bg-transparent" checked> 背景透明</label>
+            <div class="control-group" id="merge-bg-color-group" style="display:none"><label>背景颜色</label><input type="color" id="merge-bg-color" value="#000000" style="width:48px;height:28px;border:1px solid var(--border-default);border-radius:4px;cursor:pointer"></div>
+          </div>
+          <div class="section">
+            <div class="section-title">输出设置</div>
+            <div class="control-group"><label for="merge-format">格式</label><select id="merge-format" style="width:100%"><option value="png">PNG (无损)</option><option value="webp">WebP (推荐)</option></select></div>
+            <div class="btn-group" style="margin-top:6px"><button class="btn btn-ghost btn-sm" id="merge-sort-name-btn">🔤 按名称</button><button class="btn btn-ghost btn-sm" id="merge-sort-size-btn">📐 按尺寸</button></div>
+            <div class="btn-group" style="margin-top:6px"><button class="btn btn-ghost btn-sm" id="merge-clear-btn">🗑️ 清空</button><button class="btn btn-ghost btn-sm" id="merge-add-btn">➕ 追加</button></div>
+          </div>
+          <div class="section">
+            <button class="btn btn-success btn-full" id="merge-download-btn" disabled>🔗 合并并下载</button>
+          </div>
+        </div>
+
+        <div class="workspace" id="merge-workspace" style="overflow:auto;padding:20px">
+          <div class="empty-state" id="merge-empty">
+            <div class="icon">🔗</div>
+            <p>上传多张素材图进行合并</p>
+            <p class="sub">Ctrl+V 也可粘贴图片</p>
+          </div>
+          <div id="merge-preview-container" style="display:none;max-width:900px;margin:0 auto">
+            <div class="merge-grid" id="merge-grid"></div>
+          </div>
+          <div id="merge-result-container" style="display:none;text-align:center;margin-top:16px">
+            <canvas id="merge-result-canvas" style="max-width:100%;border:1px solid var(--border-default);border-radius:var(--radius-md)"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </main>
   </div>
 
   <div id="loading-overlay" class="loading-overlay" hidden>
     <div class="loading-content">
       <div class="spinner"></div>
       <p id="loading-text">处理中...</p>
+      <button class="loading-cancel-btn" id="loading-cancel-btn">取消</button>
     </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <div id="magnifier" class="magnifier" style="display:none">
+    <canvas id="mag-canvas" width="140" height="140"></canvas>
+    <div class="crosshair-h"></div>
+    <div class="crosshair-v"></div>
+    <div class="center-box"></div>
+    <div class="magnifier-info" id="mag-info"></div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

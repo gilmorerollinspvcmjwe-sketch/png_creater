@@ -1,4 +1,4 @@
 node_modules/
 dist/
-*.md
-!README.md
+*.log
+.env

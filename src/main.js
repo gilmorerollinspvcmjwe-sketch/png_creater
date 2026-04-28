@@ -1,6 +1,21 @@
 import JSZip from 'jszip';
+import { getState, setState, setStep, subscribe, notify, selectAllFiles, deselectAllFiles, clearFiles } from './modules/stateManager.js';
+import { initUploadManager, handleFiles, renderUploadQueue, deleteFile as deleteBatchFile } from './modules/uploadManager.js';
+import { initProcessManager, startBatchProcess, cancelBatchProcess, renderProcessPanel } from './modules/processManager.js';
+import { initNamingManager, renderNamingPreview } from './modules/namingManager.js';
+import { initDownloadManager, startBatchDownload, renderDownloadPanel } from './modules/downloadManager.js';
+import {
+  initSplitMode,
+  setSplitWorker,
+  handleIrregularDetectResult as handleSplitIrregularDetectResult,
+  handleInnerContourRemoveResult as handleSplitInnerContourRemoveResult,
+} from './modules/splitMode/splitController.js';
+import { initMergeMode } from './modules/mergeMode/mergeController.js';
+import { generateTexturePackerJson, generateTexturePackerJsonArray, generateCssSprite, sanitizeFileName } from './utils/helpers.js';
 
-const state = {
+let currentMode = 'single';
+
+const singleState = {
   originalImage: null,
   originalImageData: null,
   processedImageData: null,
@@ -11,68 +26,93 @@ const state = {
   fileWidth: 0,
   fileHeight: 0,
   selectedBgColor: null,
+  pickMode: null, // null | 'bg' | 'outline' | 'innerBg' | 'innerOutline'
+  irMode: {
+    bgColor: null,
+    outlineColor: null,
+    regions: [],
+    selectedRegions: new Set(),
+    innerBgColor: null,
+    innerOutlineColor: null,
+  },
 };
 
-const elements = {
-  fileInput: document.getElementById('file-input'),
-  uploadBtn: document.getElementById('upload-btn'),
-  replaceBtn: document.getElementById('replace-btn'),
-  uploadArea: document.getElementById('upload-area'),
-  originalPreview: document.getElementById('original-preview'),
-  fileName: document.getElementById('file-name'),
-  fileSize: document.getElementById('file-size'),
-  fileDimension: document.getElementById('file-dimension'),
-  bgMode: document.getElementById('bg-mode'),
-  tolerance: document.getElementById('tolerance'),
-  toleranceValue: document.getElementById('tolerance-value'),
-  edgeRemoval: document.getElementById('edge-removal'),
-  edgeRemovalValue: document.getElementById('edge-removal-value'),
-  mergeDistance: document.getElementById('merge-distance'),
-  mergeDistanceValue: document.getElementById('merge-distance-value'),
-  minArea: document.getElementById('min-area'),
-  minAreaValue: document.getElementById('min-area-value'),
-  padding: document.getElementById('padding'),
-  paddingValue: document.getElementById('padding-value'),
-  processBtn: document.getElementById('process-btn'),
-  colorPickerBtn: document.getElementById('color-picker-btn'),
-  transparentPreview: document.getElementById('transparent-preview'),
-  previewContainer: document.getElementById('preview-container'),
-  darkBgToggle: document.getElementById('dark-bg-toggle'),
-  lightBgToggle: document.getElementById('light-bg-toggle'),
-  candidateCount: document.getElementById('candidate-count'),
-  candidatesGrid: document.getElementById('candidates-grid'),
-  exportSelectedBtn: document.getElementById('export-selected-btn'),
-  exportAllBtn: document.getElementById('export-all-btn'),
-  downloadZipBtn: document.getElementById('download-zip-btn'),
-  loadingOverlay: document.getElementById('loading-overlay'),
-  loadingText: document.getElementById('loading-text'),
+const singleElements = {
+  fileInput: null,
+  uploadBtn: null,
+  replaceBtn: null,
+  uploadArea: null,
+  originalPreview: null,
+  fileName: null,
+  fileSize: null,
+  fileDimension: null,
+  bgMode: null,
+  tolerance: null,
+  toleranceValue: null,
+  edgeRemoval: null,
+  edgeRemovalValue: null,
+  dilateErode: null,
+  dilateErodeValue: null,
+  mergeDistance: null,
+  mergeDistanceValue: null,
+  minArea: null,
+  minAreaValue: null,
+  padding: null,
+  paddingValue: null,
+  processBtn: null,
+  colorPickerBtn: null,
+  transparentPreview: null,
+  previewContainer: null,
+  darkBgToggle: null,
+  lightBgToggle: null,
+  candidateCount: null,
+  candidatesGrid: null,
+  exportSelectedBtn: null,
+  exportAllBtn: null,
+  downloadZipBtn: null,
+  loadingOverlay: null,
+  loadingText: null,
 };
 
 let worker = null;
+let workerUrl = null;
 let colorPickerMode = false;
+let processTimeout = null;
 
-async function init() {
-  try {
+async function createImageWorker() {
+  if (!workerUrl) {
     const response = await fetch('/src/workers/imageProcessor.js');
     const workerCode = await response.text();
     const blob = new Blob([workerCode], { type: 'application/javascript' });
-    const workerUrl = URL.createObjectURL(blob);
-    worker = new Worker(workerUrl);
-  } catch (e) {
-    console.error('Failed to create worker:', e);
-    alert('无法创建图像处理 Worker，请刷新页面重试');
-    return;
+    workerUrl = URL.createObjectURL(blob);
   }
-  
-  worker.onmessage = function(e) {
-    const { type, result, assets, error } = e.data;
-    
+  return new Worker(workerUrl);
+}
+
+function attachWorkerHandlers(imageWorker) {
+  imageWorker.onmessage = function(e) {
+    const { type, result, assets, regions, error } = e.data;
+
     switch (type) {
       case 'processImageResult':
         handleProcessedImage(result);
         break;
       case 'detectAssetsResult':
         handleDetectedAssets(assets);
+        break;
+      case 'irregularDetectResult':
+        if (currentMode === 'split') {
+          handleSplitIrregularDetectResult(regions);
+        } else {
+          handleIrregularDetectResult(regions);
+        }
+        break;
+      case 'innerContourRemoveResult':
+        if (currentMode === 'split') {
+          handleSplitInnerContourRemoveResult(regions);
+        } else {
+          handleInnerContourRemoveResult(regions);
+        }
         break;
       case 'error':
         console.error('Worker 错误:', error);
@@ -82,101 +122,273 @@ async function init() {
         break;
     }
   };
-  
-  worker.onerror = function(e) {
+
+  imageWorker.onerror = function(e) {
     console.error('Worker error:', e);
     hideLoading();
     alert('处理图片时出错: ' + e.message);
   };
-  
-  setupEventListeners();
 }
 
-function setupEventListeners() {
-  elements.uploadBtn.addEventListener('click', () => elements.fileInput.click());
-  elements.replaceBtn.addEventListener('click', () => elements.fileInput.click());
-  elements.fileInput.addEventListener('change', handleFileSelect);
-  
-  elements.uploadArea.addEventListener('dragover', handleDragOver);
-  elements.uploadArea.addEventListener('dragleave', handleDragLeave);
-  elements.uploadArea.addEventListener('drop', handleDrop);
-  elements.uploadArea.addEventListener('click', (e) => {
-    if (!state.originalImage) {
-      elements.fileInput.click();
-    }
+async function init() {
+  try {
+    worker = await createImageWorker();
+    attachWorkerHandlers(worker);
+  } catch (e) {
+    console.error('Failed to create worker:', e);
+    alert('无法创建图像处理 Worker，请刷新页面重试');
+    return;
+  }
+
+  cacheSingleElements();
+  setupSingleEventListeners();
+  setupModeSwitch();
+
+  await initProcessManager();
+  initUploadManager();
+  initNamingManager();
+  initDownloadManager();
+  setupBatchStepNavigation();
+  setupBatchSubscriptions();
+
+  initSplitMode(worker);
+  initMergeMode();
+}
+
+function cacheSingleElements() {
+  singleElements.fileInput = document.getElementById('file-input');
+  singleElements.uploadBtn = document.getElementById('upload-btn');
+  singleElements.replaceBtn = document.getElementById('replace-btn');
+  singleElements.uploadArea = document.getElementById('upload-area');
+  singleElements.originalPreview = document.getElementById('original-preview');
+  singleElements.clearUploadBtn = document.getElementById('clear-upload-btn');
+  singleElements.fileName = document.getElementById('file-name');
+  singleElements.fileSize = document.getElementById('file-size');
+  singleElements.fileDimension = document.getElementById('file-dimension');
+  singleElements.bgMode = document.getElementById('bg-mode');
+  singleElements.tolerance = document.getElementById('tolerance');
+  singleElements.toleranceValue = document.getElementById('tolerance-value');
+  singleElements.edgeRemoval = document.getElementById('edge-removal');
+  singleElements.edgeRemovalValue = document.getElementById('edge-removal-value');
+  singleElements.dilateErode = document.getElementById('dilate-erode');
+  singleElements.dilateErodeValue = document.getElementById('dilate-erode-value');
+  singleElements.mergeDistance = document.getElementById('merge-distance');
+  singleElements.mergeDistanceValue = document.getElementById('merge-distance-value');
+  singleElements.minArea = document.getElementById('min-area');
+  singleElements.minAreaValue = document.getElementById('min-area-value');
+  singleElements.padding = document.getElementById('padding');
+  singleElements.paddingValue = document.getElementById('padding-value');
+  singleElements.processBtn = document.getElementById('process-btn');
+  singleElements.colorPickerBtn = document.getElementById('color-picker-btn');
+  singleElements.transparentPreview = document.getElementById('transparent-preview');
+  singleElements.previewContainer = document.getElementById('preview-container');
+  singleElements.darkBgToggle = document.getElementById('dark-bg-toggle');
+  singleElements.lightBgToggle = document.getElementById('light-bg-toggle');
+  singleElements.candidateCount = document.getElementById('candidate-count');
+  singleElements.candidatesGrid = document.getElementById('candidates-grid');
+  singleElements.exportSelectedBtn = document.getElementById('export-selected-btn');
+  singleElements.exportAllBtn = document.getElementById('export-all-btn');
+  singleElements.downloadZipBtn = document.getElementById('download-zip-btn');
+  singleElements.loadingOverlay = document.getElementById('loading-overlay');
+  singleElements.loadingText = document.getElementById('loading-text');
+}
+
+function setupSingleEventListeners() {
+  const el = singleElements;
+
+  if (el.uploadBtn) el.uploadBtn.addEventListener('click', () => el.fileInput.click());
+  if (el.replaceBtn) el.replaceBtn.addEventListener('click', () => el.fileInput.click());
+  if (el.fileInput) el.fileInput.addEventListener('change', handleFileSelect);
+
+  if (el.uploadArea) {
+    el.uploadArea.addEventListener('dragover', handleDragOver);
+    el.uploadArea.addEventListener('dragleave', handleDragLeave);
+    el.uploadArea.addEventListener('drop', handleDrop);
+    el.uploadArea.addEventListener('click', () => {
+      if (!singleState.originalImage) {
+        el.fileInput.click();
+      }
+    });
+  }
+
+  if (el.tolerance) el.tolerance.addEventListener('input', (e) => {
+    el.toleranceValue.textContent = e.target.value;
   });
-  
-  elements.tolerance.addEventListener('input', (e) => {
-    elements.toleranceValue.textContent = e.target.value;
+
+  if (el.edgeRemoval) el.edgeRemoval.addEventListener('input', (e) => {
+    el.edgeRemovalValue.textContent = e.target.value;
   });
-  elements.toleranceValue.textContent = elements.tolerance.value;
-  
-  elements.edgeRemoval.addEventListener('input', (e) => {
-    elements.edgeRemovalValue.textContent = e.target.value;
+
+  if (el.dilateErode) el.dilateErode.addEventListener('input', (e) => {
+    el.dilateErodeValue.textContent = e.target.value;
   });
-  
-  elements.mergeDistance.addEventListener('input', (e) => {
-    elements.mergeDistanceValue.textContent = e.target.value;
+
+  const edgeSmoothEl = document.getElementById('edge-smooth');
+  const edgeSmoothValEl = document.getElementById('edge-smooth-value');
+  if (edgeSmoothEl) edgeSmoothEl.addEventListener('input', (e) => {
+    if (edgeSmoothValEl) edgeSmoothValEl.textContent = e.target.value;
   });
-  
-  elements.minArea.addEventListener('input', (e) => {
-    elements.minAreaValue.textContent = e.target.value;
+
+  if (el.mergeDistance) el.mergeDistance.addEventListener('input', (e) => {
+    el.mergeDistanceValue.textContent = e.target.value;
   });
-  
-  elements.padding.addEventListener('input', (e) => {
-    elements.paddingValue.textContent = e.target.value;
+
+  if (el.minArea) el.minArea.addEventListener('input', (e) => {
+    el.minAreaValue.textContent = e.target.value;
   });
-  
-  elements.processBtn.addEventListener('click', processImage);
-  
-  elements.colorPickerBtn.addEventListener('click', () => {
-    if (!state.originalImage) {
+
+  if (el.padding) el.padding.addEventListener('input', (e) => {
+    el.paddingValue.textContent = e.target.value;
+  });
+
+  if (el.processBtn) el.processBtn.addEventListener('click', processImage);
+
+  if (el.colorPickerBtn) el.colorPickerBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) {
       alert('请先上传图片');
       return;
     }
+    // 如果当前是异形模式，取色按钮不生效
+    if (el.bgMode.value === 'irregular') {
+      showToast('异形模式下请使用下方专用取色按钮');
+      return;
+    }
     colorPickerMode = !colorPickerMode;
-    elements.colorPickerBtn.textContent = colorPickerMode ? '点击原图取背景色' : '点击背景取色';
+    el.colorPickerBtn.textContent = colorPickerMode ? '点击原图取背景色' : '点击背景取色';
     if (colorPickerMode) {
-      elements.originalPreview.style.cursor = 'crosshair';
+      el.originalPreview.style.cursor = 'crosshair';
     } else {
-      elements.originalPreview.style.cursor = 'default';
+      el.originalPreview.style.cursor = 'default';
     }
   });
-  
-  elements.originalPreview.addEventListener('click', handleImageClick);
-  
-  elements.darkBgToggle.addEventListener('change', updatePreviewBackground);
-  elements.lightBgToggle.addEventListener('change', updatePreviewBackground);
-  
-  elements.exportSelectedBtn.addEventListener('click', exportSelected);
-  elements.exportAllBtn.addEventListener('click', exportAll);
-  elements.downloadZipBtn.addEventListener('click', downloadZip);
-  
-  // 取色按钮始终可用
-  // elements.bgMode.addEventListener('change', (e) => {
-  //   if (e.target.value === 'solid') {
-  //     elements.colorPickerBtn.hidden = false;
-  //   } else {
-  //     elements.colorPickerBtn.hidden = true;
-  //     colorPickerMode = false;
-  //   }
-  // });
+
+  // 异形模式专用取色按钮
+  const irBgPickBtn = document.getElementById('ir-bg-pick-btn');
+  const irOutlinePickBtn = document.getElementById('ir-outline-pick-btn');
+  const innerBgPickBtn = document.getElementById('inner-bg-pick-btn');
+  const innerOutlinePickBtn = document.getElementById('inner-outline-pick-btn');
+
+  if (irBgPickBtn) irBgPickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'bg';
+    showToast('请点击原图上的背景区域');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  if (irOutlinePickBtn) irOutlinePickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'outline';
+    showToast('请点击原图上的黑色外轮廓');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  if (innerBgPickBtn) innerBgPickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'innerBg';
+    showToast('请点击素材内部的背景区域');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  if (innerOutlinePickBtn) innerOutlinePickBtn.addEventListener('click', () => {
+    if (!singleState.originalImage) { alert('请先上传图片'); return; }
+    singleState.pickMode = 'innerOutline';
+    showToast('请点击内部轮廓（可选）');
+    if (el.originalPreview) el.originalPreview.style.cursor = 'crosshair';
+  });
+
+  // 背景模式切换
+  if (el.bgMode) el.bgMode.addEventListener('change', (e) => {
+    const isIrregular = e.target.value === 'irregular';
+    const normalControls = document.getElementById('normal-mode-controls');
+    const irregularControls = document.getElementById('irregular-mode-controls');
+    if (normalControls) normalControls.style.display = isIrregular ? 'none' : '';
+    if (irregularControls) irregularControls.style.display = isIrregular ? '' : 'none';
+    if (!isIrregular) {
+      resetIrregularState();
+    }
+  });
+
+  // 应用内轮廓抠图
+  const applyInnerBtn = document.getElementById('apply-inner-btn');
+  if (applyInnerBtn) applyInnerBtn.addEventListener('click', applyInnerContour);
+
+  if (el.originalPreview) el.originalPreview.addEventListener('click', handleImageClick);
+
+  if (el.darkBgToggle) el.darkBgToggle.addEventListener('change', updatePreviewBackground);
+  if (el.lightBgToggle) el.lightBgToggle.addEventListener('change', updatePreviewBackground);
+
+  if (el.exportSelectedBtn) el.exportSelectedBtn.addEventListener('click', exportSelected);
+  if (el.exportAllBtn) el.exportAllBtn.addEventListener('click', exportAll);
+  if (el.downloadZipBtn) el.downloadZipBtn.addEventListener('click', downloadZip);
+  document.getElementById('select-all-candidates')?.addEventListener('click', selectAllCandidates);
+  document.getElementById('invert-candidates')?.addEventListener('click', invertCandidates);
+  document.getElementById('loading-cancel-btn')?.addEventListener('click', cancelSingleProcessing);
+
+  // 清除上传图片按钮
+  if (el.clearUploadBtn) {
+    el.clearUploadBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearUpload();
+    });
+  }
+}
+
+function setupModeSwitch() {
+  const modeTabs = document.querySelectorAll('.mode-tab');
+  const panels = document.querySelectorAll('.mode-panel');
+
+  modeTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const mode = tab.dataset.mode;
+      currentMode = mode;
+
+      modeTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      panels.forEach(panel => {
+        if (panel.id === `${mode}-mode-panel`) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+    });
+  });
+
+  // 折叠/展开功能
+  document.querySelectorAll('.collapsible-title').forEach(title => {
+    title.addEventListener('click', () => {
+      const targetId = title.dataset.target;
+      const content = document.getElementById(targetId);
+      if (content) {
+        content.classList.toggle('collapsed');
+        title.classList.toggle('collapsed');
+      }
+    });
+  });
+
+  // 默认收起所有区域
+  document.querySelectorAll('.collapsible-content').forEach(content => {
+    content.classList.add('collapsed');
+    const targetId = content.id;
+    const title = document.querySelector(`.collapsible-title[data-target="${targetId}"]`);
+    if (title) title.classList.add('collapsed');
+  });
 }
 
 function handleDragOver(e) {
   e.preventDefault();
-  elements.uploadArea.classList.add('dragover');
+  singleElements.uploadArea.classList.add('dragover');
 }
 
 function handleDragLeave(e) {
   e.preventDefault();
-  elements.uploadArea.classList.remove('dragover');
+  singleElements.uploadArea.classList.remove('dragover');
 }
 
 function handleDrop(e) {
   e.preventDefault();
-  elements.uploadArea.classList.remove('dragover');
-  
+  singleElements.uploadArea.classList.remove('dragover');
   const files = e.dataTransfer.files;
   if (files.length > 0) {
     handleFile(files[0]);
@@ -195,32 +407,48 @@ function handleFile(file) {
     alert('请上传 PNG、JPG 或 WEBP 格式的图片');
     return;
   }
-  
+
   if (file.size > 25 * 1024 * 1024) {
     alert('图片大小不能超过 25MB');
     return;
   }
-  
-  state.fileName = file.name;
-  
+
+  singleState.fileName = file.name;
+
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
-      state.originalImage = img;
-      state.fileWidth = img.width;
-      state.fileHeight = img.height;
-      
-      elements.originalPreview.src = e.target.result;
-      elements.originalPreview.hidden = false;
-      elements.uploadArea.querySelector('.upload-placeholder').style.display = 'none';
-      
-      elements.fileName.textContent = file.name;
-      elements.fileSize.textContent = formatFileSize(file.size);
-      elements.fileDimension.textContent = `${img.width} x ${img.height}`;
-      
-      elements.replaceBtn.disabled = false;
-      elements.processBtn.disabled = false;
+      singleState.originalImage = img;
+      singleState.fileWidth = img.width;
+      singleState.fileHeight = img.height;
+
+      if (singleElements.originalPreview) {
+        singleElements.originalPreview.src = e.target.result;
+        singleElements.originalPreview.hidden = false;
+      }
+      if (singleElements.uploadArea) {
+        const placeholder = singleElements.uploadArea.querySelector('.upload-placeholder');
+        if (placeholder) placeholder.style.display = 'none';
+      }
+
+      if (singleElements.fileName) singleElements.fileName.textContent = file.name;
+      if (singleElements.fileSize) singleElements.fileSize.textContent = formatFileSize(file.size);
+      if (singleElements.fileDimension) singleElements.fileDimension.textContent = `${img.width} x ${img.height}`;
+
+      if (singleElements.replaceBtn) singleElements.replaceBtn.disabled = false;
+      if (singleElements.processBtn) singleElements.processBtn.disabled = false;
+      if (singleElements.clearUploadBtn) singleElements.clearUploadBtn.hidden = false;
+
+      // 立即获取像素数据，供取色使用
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      singleState.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      showToast('图片上传成功，请点击取色');
     };
     img.src = e.target.result;
   };
@@ -228,60 +456,126 @@ function handleFile(file) {
 }
 
 function handleImageClick(e) {
-  if (!colorPickerMode || !state.originalImageData) return;
-  
-  const rect = elements.originalPreview.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / rect.width * state.fileWidth);
-  const y = Math.floor((e.clientY - rect.top) / rect.height * state.fileHeight);
-  
-  const idx = (y * state.fileWidth + x) * 4;
-  const r = state.originalImageData.data[idx];
-  const g = state.originalImageData.data[idx + 1];
-  const b = state.originalImageData.data[idx + 2];
-  
-  state.selectedBgColor = [r, g, b];
+  // 异形模式取色
+  if (singleState.pickMode) {
+    if (!singleState.originalImageData) {
+      showToast('像素数据未准备好，请重新上传图片');
+      return;
+    }
+    if (!singleElements.originalPreview) return;
+
+    const rect = singleElements.originalPreview.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / rect.width * singleState.fileWidth);
+    const y = Math.floor((e.clientY - rect.top) / rect.height * singleState.fileHeight);
+
+    const idx = (y * singleState.fileWidth + x) * 4;
+    const r = singleState.originalImageData.data[idx];
+    const g = singleState.originalImageData.data[idx + 1];
+    const b = singleState.originalImageData.data[idx + 2];
+
+    if (singleState.pickMode === 'bg') {
+      singleState.irMode.bgColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('ir-bg-color-picker');
+      const status = document.getElementById('ir-bg-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('背景色已选取');
+    } else if (singleState.pickMode === 'outline') {
+      singleState.irMode.outlineColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('ir-outline-color-picker');
+      const status = document.getElementById('ir-outline-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('轮廓色已选取');
+    } else if (singleState.pickMode === 'innerBg') {
+      singleState.irMode.innerBgColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('inner-bg-color-picker');
+      const status = document.getElementById('inner-bg-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('内部背景色已选取');
+    } else if (singleState.pickMode === 'innerOutline') {
+      singleState.irMode.innerOutlineColor = {r, g, b};
+      const hex = rgbToHex(r, g, b);
+      const picker = document.getElementById('inner-outline-color-picker');
+      const status = document.getElementById('inner-outline-color-status');
+      if (picker) picker.value = hex;
+      if (status) status.textContent = `RGB(${r},${g},${b})`;
+      showToast('内部轮廓色已选取');
+    }
+
+    singleState.pickMode = null;
+    if (singleElements.originalPreview) singleElements.originalPreview.style.cursor = 'default';
+    return;
+  }
+
+  // 原有普通模式取色
+  if (!colorPickerMode || !singleState.originalImageData) return;
+
+  const rect = singleElements.originalPreview.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / rect.width * singleState.fileWidth);
+  const y = Math.floor((e.clientY - rect.top) / rect.height * singleState.fileHeight);
+
+  const idx = (y * singleState.fileWidth + x) * 4;
+  const r = singleState.originalImageData.data[idx];
+  const g = singleState.originalImageData.data[idx + 1];
+  const b = singleState.originalImageData.data[idx + 2];
+
+  singleState.selectedBgColor = [r, g, b];
   colorPickerMode = false;
-  elements.originalPreview.style.cursor = 'default';
-  elements.colorPickerBtn.textContent = `已选颜色: rgb(${r}, ${g}, ${b})`;
-  
-  // 自动切换到纯色模式并处理
-  elements.bgMode.value = 'solid';
-  console.log('取色完成，颜色:', [r, g, b], '自动切换到纯色模式');
-  
-  // 自动开始处理
+  singleElements.originalPreview.style.cursor = 'default';
+  singleElements.colorPickerBtn.textContent = `已选颜色: rgb(${r}, ${g}, ${b})`;
+
+  singleElements.bgMode.value = 'solid';
+
   setTimeout(() => {
     processImage();
   }, 100);
 }
 
 function showLoading(text) {
-  elements.loadingText.textContent = text;
-  elements.loadingOverlay.hidden = false;
+  singleElements.loadingText.textContent = text;
+  singleElements.loadingOverlay.hidden = false;
 }
 
 function hideLoading() {
-  elements.loadingOverlay.hidden = true;
+  singleElements.loadingOverlay.hidden = true;
 }
 
-let processTimeout = null;
-
 function processImage() {
-  if (!state.originalImage) return;
-  
+  if (!singleState.originalImage) return;
+
+  const bgMode = singleElements.bgMode.value;
+
+  if (bgMode === 'irregular') {
+    processIrregular();
+  } else {
+    processNormal();
+  }
+}
+
+function processNormal() {
   showLoading('正在处理图片...');
-  console.log('开始处理图片:', state.fileWidth, 'x', state.fileHeight);
-  
+
+  const bgMode = singleElements.bgMode.value;
+  if (bgMode === 'solid' && !singleState.selectedBgColor) {
+    hideLoading();
+    alert('请先选取背景色（点击"点击取色"按钮）');
+    return;
+  }
+
   const canvas = document.createElement('canvas');
-  canvas.width = state.fileWidth;
-  canvas.height = state.fileHeight;
+  canvas.width = singleState.fileWidth;
+  canvas.height = singleState.fileHeight;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(state.originalImage, 0, 0);
-  
+  ctx.drawImage(singleState.originalImage, 0, 0);
+
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  state.originalImageData = imageData;
-  
-  console.log('图片数据已获取，发送给 Worker');
-  
+  singleState.originalImageData = imageData;
+
   worker.postMessage({
     type: 'processImage',
     data: {
@@ -290,160 +584,305 @@ function processImage() {
         height: imageData.height,
         data: Array.from(imageData.data)
       },
-      bgMode: elements.bgMode.value,
-      tolerance: parseInt(elements.tolerance.value),
-      edgeRemoval: parseInt(elements.edgeRemoval.value),
-      selectedColor: state.selectedBgColor
+      bgMode: bgMode,
+      tolerance: parseInt(singleElements.tolerance.value),
+      edgeRemoval: parseInt(singleElements.edgeRemoval.value),
+      dilateErode: parseInt(singleElements.dilateErode.value),
+      selectedColor: singleState.selectedBgColor,
+      smoothEdge: parseInt(document.getElementById('edge-smooth').value || 0)
     }
   });
-  
+
   processTimeout = setTimeout(() => {
-    console.error('处理超时');
     hideLoading();
     alert('处理超时，请尝试使用更小的图片或刷新页面');
   }, 30000);
 }
 
+function processIrregular() {
+  if (!singleState.irMode.bgColor) {
+    alert('请先选取背景色');
+    return;
+  }
+
+  showLoading('正在检测异形素材...');
+
+  const canvas = document.createElement('canvas');
+  canvas.width = singleState.fileWidth;
+  canvas.height = singleState.fileHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(singleState.originalImage, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  singleState.originalImageData = imageData;
+
+  worker.postMessage({
+    type: 'irregularDetect',
+    data: {
+      imageData: {
+        width: imageData.width,
+        height: imageData.height,
+        data: Array.from(imageData.data)
+      },
+      bgColor: singleState.irMode.bgColor,
+      outlineColor: singleState.irMode.outlineColor,
+      outlineTolerance: parseInt(document.getElementById('outline-tolerance').value),
+      sensitivity: parseInt(document.getElementById('detect-sensitivity').value),
+      minArea: parseInt(document.getElementById('ir-min-area').value),
+      dilatePx: parseInt(document.getElementById('dilate-px').value)
+    }
+  });
+
+  processTimeout = setTimeout(() => {
+    hideLoading();
+    alert('检测超时，请尝试调整参数');
+  }, 30000);
+}
+
 function handleProcessedImage(result) {
-  console.log('收到处理结果');
   clearTimeout(processTimeout);
-  
+
   const { imageData, bgMask } = result;
-  
+  const newImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+
   const canvas = document.createElement('canvas');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   const ctx = canvas.getContext('2d');
-  
-  const newImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
   ctx.putImageData(newImageData, 0, 0);
-  
-  state.processedImageData = newImageData;
-  state.bgMask = new Uint8Array(bgMask);
-  
-  elements.transparentPreview.src = canvas.toDataURL();
-  elements.transparentPreview.hidden = false;
-  
+
+  singleState.processedImageData = newImageData;
+  singleState.bgMask = new Uint8Array(bgMask);
+
+  singleElements.transparentPreview.src = canvas.toDataURL();
+  singleElements.transparentPreview.hidden = false;
+
   detectAssets();
 }
 
 function detectAssets() {
   showLoading('正在识别候选素材...');
-  console.log('开始识别素材');
-  
+
   worker.postMessage({
     type: 'detectAssets',
     data: {
       imageData: {
-        width: state.processedImageData.width,
-        height: state.processedImageData.height,
-        data: Array.from(state.processedImageData.data)
+        width: singleState.processedImageData.width,
+        height: singleState.processedImageData.height,
+        data: Array.from(singleState.processedImageData.data)
       },
-      bgMask: Array.from(state.bgMask),
-      mergeDistance: parseInt(elements.mergeDistance.value),
-      minArea: parseInt(elements.minArea.value),
-      padding: parseInt(elements.padding.value)
+      bgMask: Array.from(singleState.bgMask),
+      mergeDistance: parseInt(singleElements.mergeDistance.value),
+      minArea: parseInt(singleElements.minArea.value),
+      padding: parseInt(singleElements.padding.value),
+      deduplicate: document.getElementById('deduplicate-assets')?.checked || false
     }
   });
-  
+
   processTimeout = setTimeout(() => {
-    console.error('识别素材超时');
     hideLoading();
     alert('识别素材超时，请尝试调整参数或刷新页面');
   }, 30000);
 }
 
 function handleDetectedAssets(assets) {
-  console.log('收到素材识别结果:', assets.length, '个素材');
   clearTimeout(processTimeout);
-  
-  state.candidates = assets;
-  state.selectedCandidates = new Set(assets.map(a => a.id));
-  
-  elements.candidateCount.textContent = assets.length;
-  
+
+  // 为每个素材生成缩略图 dataURL
+  const candidates = assets.map(asset => {
+    let thumbDataURL = '';
+    if (asset.thumbnail && asset.thumbnail.data) {
+      try {
+        const thumbImageData = new ImageData(
+          new Uint8ClampedArray(asset.thumbnail.data),
+          asset.thumbnail.width,
+          asset.thumbnail.height
+        );
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = asset.thumbnail.width;
+        thumbCanvas.height = asset.thumbnail.height;
+        thumbCanvas.getContext('2d').putImageData(thumbImageData, 0, 0);
+        thumbDataURL = thumbCanvas.toDataURL('image/png');
+      } catch (err) {
+        console.warn('Thumbnail generation failed:', err);
+      }
+    }
+    return {
+      id: asset.id,
+      name: asset.name,
+      x: asset.x,
+      y: asset.y,
+      w: asset.w,
+      h: asset.h,
+      thumbDataURL: thumbDataURL,
+    };
+  });
+
+  singleState.candidates = candidates;
+  singleState.selectedCandidates = new Set(candidates.map(a => a.id));
+
+  singleElements.candidateCount.textContent = candidates.length;
+
   renderCandidates();
-  
-  elements.exportSelectedBtn.disabled = assets.length === 0;
-  elements.exportAllBtn.disabled = assets.length === 0;
-  elements.downloadZipBtn.disabled = assets.length === 0;
-  
+
+  singleElements.exportSelectedBtn.disabled = candidates.length === 0;
+  singleElements.exportAllBtn.disabled = candidates.length === 0;
+  singleElements.downloadZipBtn.disabled = candidates.length === 0;
+
   hideLoading();
 }
 
+function openPreviewModal(id) {
+  const candidate = singleState.candidates.find(c => c.id === id);
+  if (!candidate) return;
+
+  const modal = document.getElementById('preview-modal');
+  const modalImage = document.getElementById('modal-image');
+  const modalInfo = document.getElementById('modal-info');
+
+  // 从整图提取高清素材
+  const canvas = document.createElement('canvas');
+  canvas.width = candidate.w;
+  canvas.height = candidate.h;
+  const ctx = canvas.getContext('2d');
+
+  const srcData = singleState.processedImageData;
+  const srcW = srcData?.width || 0;
+  if (srcData) {
+    const imageData = ctx.createImageData(candidate.w, candidate.h);
+    for (let ay = 0; ay < candidate.h; ay++) {
+      for (let ax = 0; ax < candidate.w; ax++) {
+        const srcX = candidate.x + ax;
+        const srcY = candidate.y + ay;
+        if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+          const srcIdx = (srcY * srcW + srcX) * 4;
+          const dstIdx = (ay * candidate.w + ax) * 4;
+          imageData.data[dstIdx] = srcData.data[srcIdx];
+          imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+          imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+          imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  modalImage.src = canvas.toDataURL();
+  modalInfo.textContent = `${candidate.name} · ${candidate.w} × ${candidate.h} · (${candidate.x}, ${candidate.y})`;
+  modal.hidden = false;
+}
+
+function closePreviewModal() {
+  const modal = document.getElementById('preview-modal');
+  if (modal) modal.hidden = true;
+}
+
 function renderCandidates() {
-  elements.candidatesGrid.innerHTML = '';
-  
-  if (state.candidates.length === 0) {
-    elements.candidatesGrid.innerHTML = '<div class="empty-state"><p>未识别到候选素材</p></div>';
+  singleElements.candidatesGrid.innerHTML = '';
+
+  if (singleState.candidates.length === 0) {
+    singleElements.candidatesGrid.innerHTML = '<div class="empty-state"><p>未识别到候选素材</p></div>';
     return;
   }
-  
-  for (const candidate of state.candidates) {
+
+  const srcData = singleState.processedImageData;
+  const srcW = srcData?.width || 0;
+
+  for (const candidate of singleState.candidates) {
     const card = document.createElement('div');
     card.className = 'candidate-card';
     card.dataset.id = candidate.id;
-    
-    if (state.selectedCandidates.has(candidate.id)) {
+
+    if (singleState.selectedCandidates.has(candidate.id)) {
       card.classList.add('selected');
     }
-    
+
+    // 从整图提取像素
     const canvas = document.createElement('canvas');
     canvas.width = candidate.w;
     canvas.height = candidate.h;
     const ctx = canvas.getContext('2d');
-    const imageData = new ImageData(
-      new Uint8ClampedArray(candidate.imageData.data),
-      candidate.w,
-      candidate.h
-    );
-    ctx.putImageData(imageData, 0, 0);
-    
+
+    if (srcData) {
+      const imageData = ctx.createImageData(candidate.w, candidate.h);
+      for (let ay = 0; ay < candidate.h; ay++) {
+        for (let ax = 0; ax < candidate.w; ax++) {
+          const srcX = candidate.x + ax;
+          const srcY = candidate.y + ay;
+          if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+            const srcIdx = (srcY * srcW + srcX) * 4;
+            const dstIdx = (ay * candidate.w + ax) * 4;
+            imageData.data[dstIdx] = srcData.data[srcIdx];
+            imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+            imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+            imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+
     card.innerHTML = `
-      <div class="candidate-preview">
+      <div class="candidate-preview" data-candidate-id="${candidate.id}">
         <img src="${canvas.toDataURL()}" alt="${candidate.name}">
+        <div class="preview-zoom-icon">🔍</div>
       </div>
       <div class="candidate-info">
         <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
-        <div class="candidate-meta">${candidate.w} x ${candidate.h} | (${candidate.x}, ${candidate.y})</div>
+        <div class="candidate-meta">${candidate.w} x ${candidate.h}</div>
         <div class="candidate-actions">
           <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
           <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
         </div>
       </div>
     `;
-    
-    elements.candidatesGrid.appendChild(card);
+
+    singleElements.candidatesGrid.appendChild(card);
   }
-  
+
+  // 大图预览点击事件
+  document.querySelectorAll('.candidate-preview').forEach(preview => {
+    preview.addEventListener('click', (e) => {
+      if (e.target.closest('.candidate-card').classList.contains('selected')) return;
+      const id = parseInt(preview.dataset.candidateId);
+      openPreviewModal(id);
+    });
+  });
+
+  // 关闭模态框事件
+  document.getElementById('modal-close')?.addEventListener('click', closePreviewModal);
+  document.getElementById('modal-overlay')?.addEventListener('click', closePreviewModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePreviewModal();
+  });
+
   document.querySelectorAll('.candidate-name-input').forEach(input => {
     input.addEventListener('change', (e) => {
       const id = parseInt(e.target.dataset.id);
-      const candidate = state.candidates.find(c => c.id === id);
+      const candidate = singleState.candidates.find(c => c.id === id);
       if (candidate) {
         candidate.name = sanitizeFileName(e.target.value);
       }
     });
   });
-  
+
   document.querySelectorAll('.btn-delete').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = parseInt(e.target.dataset.id);
       deleteCandidate(id);
     });
   });
-  
+
   document.querySelectorAll('.btn-download').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = parseInt(e.target.dataset.id);
       downloadSingleCandidate(id);
     });
   });
-  
+
   document.querySelectorAll('.candidate-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
-      
       const id = parseInt(card.dataset.id);
       toggleCandidateSelection(id);
     });
@@ -451,71 +890,433 @@ function renderCandidates() {
 }
 
 function deleteCandidate(id) {
-  state.candidates = state.candidates.filter(c => c.id !== id);
-  state.selectedCandidates.delete(id);
-  
-  elements.candidateCount.textContent = state.candidates.length;
-  renderCandidates();
-  
+  singleState.candidates = singleState.candidates.filter(c => c.id !== id);
+  singleState.selectedCandidates.delete(id);
+  singleElements.candidateCount.textContent = singleState.candidates.length;
+  renderCandidateList();
   updateExportButtons();
 }
 
 function toggleCandidateSelection(id) {
-  if (state.selectedCandidates.has(id)) {
-    state.selectedCandidates.delete(id);
+  if (singleState.selectedCandidates.has(id)) {
+    singleState.selectedCandidates.delete(id);
   } else {
-    state.selectedCandidates.add(id);
+    singleState.selectedCandidates.add(id);
   }
-  
-  renderCandidates();
+  renderCandidateList();
   updateExportButtons();
 }
 
+function renderCandidateList() {
+  if (singleElements.bgMode?.value === 'irregular') {
+    renderIrregularCandidates();
+    renderIrregularPreview();
+  } else {
+    renderCandidates();
+  }
+}
+
+function selectAllCandidates() {
+  singleState.selectedCandidates = new Set(singleState.candidates.map(candidate => candidate.id));
+  renderCandidateList();
+  updateExportButtons();
+}
+
+function invertCandidates() {
+  const inverted = new Set();
+  for (const candidate of singleState.candidates) {
+    if (!singleState.selectedCandidates.has(candidate.id)) {
+      inverted.add(candidate.id);
+    }
+  }
+  singleState.selectedCandidates = inverted;
+  renderCandidateList();
+  updateExportButtons();
+}
+
+async function cancelSingleProcessing() {
+  clearTimeout(processTimeout);
+  if (worker) worker.terminate();
+  try {
+    worker = await createImageWorker();
+    attachWorkerHandlers(worker);
+    setSplitWorker(worker);
+  } catch (error) {
+    console.error('重新创建 Worker 失败:', error);
+    alert('取消后恢复处理器失败，请刷新页面');
+  }
+  hideLoading();
+  showToast('已取消处理', 'info');
+}
+
 function updateExportButtons() {
-  const hasSelected = state.selectedCandidates.size > 0;
-  elements.exportSelectedBtn.disabled = !hasSelected;
-  elements.exportAllBtn.disabled = state.candidates.length === 0;
-  elements.downloadZipBtn.disabled = state.candidates.length === 0;
+  const hasSelected = singleState.selectedCandidates.size > 0;
+  singleElements.exportSelectedBtn.disabled = !hasSelected;
+  singleElements.exportAllBtn.disabled = singleState.candidates.length === 0;
+  singleElements.downloadZipBtn.disabled = singleState.candidates.length === 0;
 }
 
 function downloadSingleCandidate(id) {
-  const candidate = state.candidates.find(c => c.id === id);
+  const candidate = singleState.candidates.find(c => c.id === id);
   if (!candidate) return;
-  
+
   const canvas = document.createElement('canvas');
   canvas.width = candidate.w;
   canvas.height = candidate.h;
   const ctx = canvas.getContext('2d');
-  const imageData = new ImageData(
-    new Uint8ClampedArray(candidate.imageData.data),
-    candidate.w,
-    candidate.h
-  );
-  ctx.putImageData(imageData, 0, 0);
-  
+
+  if (singleState.processedImageData) {
+    const imageData = ctx.createImageData(candidate.w, candidate.h);
+    const srcData = singleState.processedImageData;
+    const srcW = srcData.width;
+    for (let ay = 0; ay < candidate.h; ay++) {
+      for (let ax = 0; ax < candidate.w; ax++) {
+        const srcX = candidate.x + ax;
+        const srcY = candidate.y + ay;
+        if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+          const srcIdx = (srcY * srcW + srcX) * 4;
+          const dstIdx = (ay * candidate.w + ax) * 4;
+          imageData.data[dstIdx] = srcData.data[srcIdx];
+          imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+          imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+          imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
   const link = document.createElement('a');
   link.download = `${candidate.name}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
 
+function handleIrregularDetectResult(regions) {
+  clearTimeout(processTimeout);
+
+  singleState.irMode.regions = regions;
+  singleState.candidates = regions.map((r, i) => ({
+    id: i + 1,
+    name: `candidate-${String(i + 1).padStart(3, '0')}`,
+    x: r.bounds.x,
+    y: r.bounds.y,
+    w: r.bounds.w,
+    h: r.bounds.h,
+    pixels: r.pixels,
+    pixelSet: r.pixelSet,
+    color: r.color,
+    area: r.area,
+  }));
+  singleState.selectedCandidates = new Set(singleState.candidates.map(c => c.id));
+
+  singleElements.candidateCount.textContent = regions.length;
+  renderIrregularCandidates();
+  renderIrregularPreview();
+
+  // 显示内轮廓抠图区域
+  const innerSection = document.getElementById('inner-contour-section');
+  if (innerSection) innerSection.style.display = '';
+
+  singleElements.exportSelectedBtn.disabled = regions.length === 0;
+  singleElements.exportAllBtn.disabled = regions.length === 0;
+  singleElements.downloadZipBtn.disabled = regions.length === 0;
+
+  hideLoading();
+}
+
+function renderIrregularCandidates() {
+  singleElements.candidatesGrid.innerHTML = '';
+
+  if (singleState.candidates.length === 0) {
+    singleElements.candidatesGrid.innerHTML = '<div class="empty-state"><p>未识别到候选素材</p></div>';
+    return;
+  }
+
+  for (const candidate of singleState.candidates) {
+    const card = document.createElement('div');
+    card.className = 'candidate-card';
+    card.dataset.id = candidate.id;
+
+    if (singleState.selectedCandidates.has(candidate.id)) {
+      card.classList.add('selected');
+    }
+
+    // 创建精确像素的预览
+    const canvas = document.createElement('canvas');
+    canvas.width = candidate.w;
+    canvas.height = candidate.h;
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(candidate.w, candidate.h);
+
+    if (candidate.pixels && singleState.originalImageData) {
+      for (const p of candidate.pixels) {
+        const px = Array.isArray(p) ? p[0] : p.x;
+        const py = Array.isArray(p) ? p[1] : p.y;
+        const localX = px - candidate.x;
+        const localY = py - candidate.y;
+        if (localX >= 0 && localX < candidate.w && localY >= 0 && localY < candidate.h) {
+          const srcIdx = (py * singleState.fileWidth + px) * 4;
+          const dstIdx = (localY * candidate.w + localX) * 4;
+          imageData.data[dstIdx] = singleState.originalImageData.data[srcIdx];
+          imageData.data[dstIdx + 1] = singleState.originalImageData.data[srcIdx + 1];
+          imageData.data[dstIdx + 2] = singleState.originalImageData.data[srcIdx + 2];
+          imageData.data[dstIdx + 3] = 255;
+        }
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    card.innerHTML = `
+      <div class="candidate-preview">
+        <img src="${canvas.toDataURL()}" alt="${candidate.name}">
+      </div>
+      <div class="candidate-info">
+        <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
+        <div class="candidate-meta">${candidate.w} x ${candidate.h} | 面积: ${candidate.area}</div>
+        <div class="candidate-actions">
+          <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
+          <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
+        </div>
+      </div>
+    `;
+
+    singleElements.candidatesGrid.appendChild(card);
+  }
+
+  // 绑定事件
+  document.querySelectorAll('.candidate-name-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      const candidate = singleState.candidates.find(c => c.id === id);
+      if (candidate) candidate.name = sanitizeFileName(e.target.value);
+    });
+  });
+
+  document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      deleteCandidate(id);
+    });
+  });
+
+  document.querySelectorAll('.btn-download').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      downloadSingleCandidate(id);
+    });
+  });
+
+  document.querySelectorAll('.candidate-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+      const id = parseInt(card.dataset.id);
+      toggleCandidateSelection(id);
+    });
+  });
+}
+
+function renderIrregularPreview() {
+  if (!singleState.originalImageData || singleState.candidates.length === 0) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = singleState.fileWidth;
+  canvas.height = singleState.fileHeight;
+  const ctx = canvas.getContext('2d');
+  const imageData = new ImageData(
+    new Uint8ClampedArray(singleState.originalImageData.data),
+    singleState.fileWidth,
+    singleState.fileHeight
+  );
+
+  // 非选中区域的像素变透明
+  const selectedSet = new Set();
+  for (const c of singleState.candidates) {
+    if (singleState.selectedCandidates.has(c.id) && c.pixels) {
+      for (const p of c.pixels) {
+        const px = Array.isArray(p) ? p[0] : p.x;
+        const py = Array.isArray(p) ? p[1] : p.y;
+        selectedSet.add(py * singleState.fileWidth + px);
+      }
+    }
+  }
+
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const idx = i / 4;
+    if (!selectedSet.has(idx)) {
+      imageData.data[i + 3] = 0;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  singleElements.transparentPreview.src = canvas.toDataURL();
+  singleElements.transparentPreview.hidden = false;
+}
+
+function applyInnerContour() {
+  const selectedIds = Array.from(singleState.selectedCandidates);
+  if (selectedIds.length === 0) {
+    alert('请先勾选要处理的素材');
+    return;
+  }
+  if (!singleState.irMode.innerBgColor) {
+    alert('请先选取内部背景色');
+    return;
+  }
+
+  showLoading('正在去除内部背景...');
+
+  const selectedIndices = selectedIds.map(id => id - 1);
+
+  worker.postMessage({
+    type: 'innerContourRemove',
+    data: {
+      imageData: {
+        width: singleState.fileWidth,
+        height: singleState.fileHeight,
+        data: Array.from(singleState.originalImageData.data)
+      },
+      regions: singleState.irMode.regions,
+      selectedIndices: selectedIndices,
+      innerBgColor: singleState.irMode.innerBgColor,
+      innerOutlineColor: singleState.irMode.innerOutlineColor,
+      innerTolerance: parseInt(document.getElementById('inner-tolerance').value),
+      innerDilatePx: parseInt(document.getElementById('inner-dilate-px').value)
+    }
+  });
+
+  processTimeout = setTimeout(() => {
+    hideLoading();
+    alert('处理超时');
+  }, 30000);
+}
+
+function handleInnerContourRemoveResult(regions) {
+  clearTimeout(processTimeout);
+
+  singleState.irMode.regions = regions;
+  singleState.candidates = regions.map((r, i) => ({
+    id: i + 1,
+    name: singleState.candidates[i]?.name || `candidate-${String(i + 1).padStart(3, '0')}`,
+    x: r.bounds.x,
+    y: r.bounds.y,
+    w: r.bounds.w,
+    h: r.bounds.h,
+    pixels: r.pixels,
+    pixelSet: r.pixelSet,
+    color: r.color,
+    area: r.area,
+  }));
+
+  singleElements.candidateCount.textContent = regions.length;
+  renderIrregularCandidates();
+  renderIrregularPreview();
+  hideLoading();
+  showToast('内部背景已去除');
+}
+
+function resetIrregularState() {
+  singleState.irMode = {
+    bgColor: null,
+    outlineColor: null,
+    regions: [],
+    selectedRegions: new Set(),
+    innerBgColor: null,
+    innerOutlineColor: null,
+  };
+  singleState.pickMode = null;
+
+  // 重置 UI
+  const bgStatus = document.getElementById('ir-bg-color-status');
+  const outlineStatus = document.getElementById('ir-outline-color-status');
+  const innerStatus = document.getElementById('inner-bg-color-status');
+  const innerOutlineStatus = document.getElementById('inner-outline-color-status');
+  const innerSection = document.getElementById('inner-contour-section');
+
+  if (bgStatus) bgStatus.textContent = '未取色';
+  if (outlineStatus) outlineStatus.textContent = '未取色';
+  if (innerStatus) innerStatus.textContent = '未取色';
+  if (innerOutlineStatus) innerOutlineStatus.textContent = '未取色';
+  if (innerSection) innerSection.style.display = 'none';
+}
+
+function clearUpload() {
+  // 重置状态
+  singleState.originalImage = null;
+  singleState.originalImageData = null;
+  singleState.processedImageData = null;
+  singleState.bgMask = null;
+  singleState.candidates = [];
+  singleState.selectedCandidates = new Set();
+  singleState.fileName = '';
+  singleState.fileWidth = 0;
+  singleState.fileHeight = 0;
+  singleState.selectedBgColor = null;
+  resetIrregularState();
+
+  // 重置 UI
+  if (singleElements.originalPreview) {
+    singleElements.originalPreview.src = '';
+    singleElements.originalPreview.hidden = true;
+  }
+  if (singleElements.uploadArea) {
+    const placeholder = singleElements.uploadArea.querySelector('.upload-placeholder');
+    if (placeholder) placeholder.style.display = '';
+  }
+  if (singleElements.clearUploadBtn) {
+    singleElements.clearUploadBtn.hidden = true;
+  }
+  if (singleElements.fileName) singleElements.fileName.textContent = '';
+  if (singleElements.fileSize) singleElements.fileSize.textContent = '';
+  if (singleElements.fileDimension) singleElements.fileDimension.textContent = '';
+  if (singleElements.replaceBtn) singleElements.replaceBtn.disabled = true;
+  if (singleElements.processBtn) singleElements.processBtn.disabled = true;
+  if (singleElements.transparentPreview) {
+    singleElements.transparentPreview.src = '';
+    singleElements.transparentPreview.hidden = true;
+  }
+
+  // 清空候选素材
+  singleElements.candidateCount.textContent = '0';
+  singleElements.candidatesGrid.innerHTML = `
+    <div class="empty-state">
+      <div class="icon">🖼️</div>
+      <p>上传并处理图片后将显示候选素材</p>
+    </div>
+  `;
+
+  // 禁用导出按钮
+  if (singleElements.exportSelectedBtn) singleElements.exportSelectedBtn.disabled = true;
+  if (singleElements.exportAllBtn) singleElements.exportAllBtn.disabled = true;
+  if (singleElements.downloadZipBtn) singleElements.downloadZipBtn.disabled = true;
+
+  showToast('图片已清除');
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(x => {
+    const hex = x.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
+}
+
 function updatePreviewBackground() {
-  elements.previewContainer.classList.remove('dark-bg', 'light-bg');
-  
-  if (elements.darkBgToggle.checked) {
-    elements.previewContainer.classList.add('dark-bg');
-  } else if (elements.lightBgToggle.checked) {
-    elements.previewContainer.classList.add('light-bg');
+  singleElements.previewContainer.classList.remove('dark-bg', 'light-bg');
+  if (singleElements.darkBgToggle.checked) {
+    singleElements.previewContainer.classList.add('dark-bg');
+  } else if (singleElements.lightBgToggle.checked) {
+    singleElements.previewContainer.classList.add('light-bg');
   }
 }
 
 async function exportSelected() {
-  const selected = state.candidates.filter(c => state.selectedCandidates.has(c.id));
+  const selected = singleState.candidates.filter(c => singleState.selectedCandidates.has(c.id));
   await exportCandidates(selected);
 }
 
 async function exportAll() {
-  await exportCandidates(state.candidates);
+  await exportCandidates(singleState.candidates);
 }
 
 async function exportCandidates(candidates) {
@@ -523,60 +1324,90 @@ async function exportCandidates(candidates) {
     alert('没有可导出的素材');
     return;
   }
-  
+
   showLoading('正在导出素材...');
-  
+
   const zip = new JSZip();
   const imagesFolder = zip.folder('images');
   const manifest = [];
-  
+  const srcData = singleState.processedImageData;
+  const srcW = srcData?.width || 0;
+
   for (const candidate of candidates) {
     const canvas = document.createElement('canvas');
     canvas.width = candidate.w;
     canvas.height = candidate.h;
     const ctx = canvas.getContext('2d');
-    const imageData = new ImageData(
-      new Uint8ClampedArray(candidate.imageData.data),
-      candidate.w,
-      candidate.h
-    );
-    ctx.putImageData(imageData, 0, 0);
-    
+
+    if (srcData) {
+      const imageData = ctx.createImageData(candidate.w, candidate.h);
+      for (let ay = 0; ay < candidate.h; ay++) {
+        for (let ax = 0; ax < candidate.w; ax++) {
+          const srcX = candidate.x + ax;
+          const srcY = candidate.y + ay;
+          if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+            const srcIdx = (srcY * srcW + srcX) * 4;
+            const dstIdx = (ay * candidate.w + ax) * 4;
+            imageData.data[dstIdx] = srcData.data[srcIdx];
+            imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+            imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+            imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const fileName = `${candidate.name}.png`;
-    
+
     imagesFolder.file(fileName, blob);
-    
+
     manifest.push({
       name: candidate.name,
       file: fileName,
-      width: candidate.w,
-      height: candidate.h,
-      sourceX: candidate.x,
-      sourceY: candidate.y,
-      sourceWidth: candidate.w,
-      sourceHeight: candidate.h
+      x: candidate.x,
+      y: candidate.y,
+      w: candidate.w,
+      h: candidate.h
     });
   }
-  
+
+  // 生成 JSON 数据文件
+  const sourceName = singleState.fileName || 'source-image';
+  const sourceWidth = srcData?.width || 0;
+  const sourceHeight = srcData?.height || 0;
+
+  if (document.getElementById('export-json-hash')?.checked) {
+    const jsonHash = generateTexturePackerJson(manifest, sourceName, sourceWidth, sourceHeight);
+    zip.file('spritesheet.json', JSON.stringify(jsonHash, null, 2));
+  }
+
+  if (document.getElementById('export-json-array')?.checked) {
+    const jsonArray = generateTexturePackerJsonArray(manifest, sourceName, sourceWidth, sourceHeight);
+    zip.file('spritesheet-array.json', JSON.stringify(jsonArray, null, 2));
+  }
+
+  if (document.getElementById('export-css')?.checked) {
+    const css = generateCssSprite(manifest, sourceName);
+    zip.file('sprites.css', css);
+  }
+
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-  
-  const previewHtml = generatePreviewHtml(manifest);
-  zip.file('preview.html', previewHtml);
-  
+  zip.file('preview.html', generatePreviewHtml(manifest));
+
   const content = await zip.generateAsync({ type: 'blob' });
-  
+
   const link = document.createElement('a');
   link.download = 'asset-cutout-export.zip';
   link.href = URL.createObjectURL(content);
   link.click();
-  
+
   hideLoading();
 }
 
 function generatePreviewHtml(manifest) {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -584,119 +1415,28 @@ function generatePreviewHtml(manifest) {
   <title>素材预览</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding: 24px;
-      background: #1a1a2e;
-      color: #e6e6e6;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 32px;
-      font-size: 28px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 24px;
-    }
-    .card {
-      background: #16213e;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid #2a2a4a;
-    }
-    .preview {
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: 
-        linear-gradient(45deg, #808080 25%, transparent 25%),
-        linear-gradient(-45deg, #808080 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #808080 75%),
-        linear-gradient(-45deg, transparent 75%, #808080 75%);
-      background-size: 20px 20px;
-      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-      background-color: #cccccc;
-    }
-    .preview img {
-      max-width: 90%;
-      max-height: 90%;
-      object-fit: contain;
-    }
-    .preview-dark {
-      background: #1a1a1a;
-    }
-    .info {
-      padding: 12px;
-    }
-    .info h3 {
-      font-size: 16px;
-      margin-bottom: 8px;
-    }
-    .info p {
-      font-size: 12px;
-      color: #b0b0b0;
-    }
-    .section-title {
-      grid-column: 1 / -1;
-      font-size: 20px;
-      margin: 32px 0 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #2a2a4a;
-    }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 24px; background: #1a1a2e; color: #e6e6e6; }
+    h1 { text-align: center; margin-bottom: 32px; font-size: 28px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 24px; }
+    .card { background: #16213e; border-radius: 8px; overflow: hidden; border: 1px solid #2a2a4a; }
+    .preview { height: 200px; display: flex; align-items: center; justify-content: center; background: linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; background-color: #cccccc; }
+    .preview img { max-width: 90%; max-height: 90%; object-fit: contain; }
+    .info { padding: 12px; }
+    .info h3 { font-size: 16px; margin-bottom: 8px; }
+    .info p { font-size: 12px; color: #b0b0b0; }
   </style>
 </head>
 <body>
   <h1>素材预览</h1>
-  
-  <h2 class="section-title">浅色背景预览</h2>
   <div class="grid">
-    ${manifest.map(item => `
-      <div class="card">
-        <div class="preview">
-          <img src="images/${item.file}" alt="${item.name}">
-        </div>
-        <div class="info">
-          <h3>${item.name}</h3>
-          <p>尺寸: ${item.width} x ${item.height}</p>
-          <p>坐标: (${item.sourceX}, ${item.sourceY})</p>
-        </div>
-      </div>
-    `).join('')}
-  </div>
-  
-  <h2 class="section-title">深色背景预览</h2>
-  <div class="grid">
-    ${manifest.map(item => `
-      <div class="card">
-        <div class="preview preview-dark">
-          <img src="images/${item.file}" alt="${item.name}">
-        </div>
-        <div class="info">
-          <h3>${item.name}</h3>
-          <p>尺寸: ${item.width} x ${item.height}</p>
-          <p>坐标: (${item.sourceX}, ${item.sourceY})</p>
-        </div>
-      </div>
-    `).join('')}
+    ${manifest.map(item => `<div class="card"><div class="preview"><img src="images/${item.file}" alt="${item.name}"></div><div class="info"><h3>${item.name}</h3><p>尺寸: ${item.width} x ${item.height}</p><p>坐标: (${item.sourceX}, ${item.sourceY})</p></div></div>`).join('')}
   </div>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 async function downloadZip() {
   await exportAll();
-}
-
-function sanitizeFileName(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'unnamed';
 }
 
 function formatFileSize(bytes) {
@@ -705,4 +1445,165 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-await init();
+function setupBatchStepNavigation() {
+  document.querySelectorAll('.batch-step-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const step = parseInt(btn.dataset.step);
+      if (step >= 1 && step <= 4) {
+        switchBatchStep(step);
+      }
+    });
+  });
+
+  document.getElementById('to-step-2-btn')?.addEventListener('click', () => switchBatchStep(2));
+  document.getElementById('to-step-3-btn')?.addEventListener('click', () => switchBatchStep(3));
+  document.getElementById('to-step-4-btn')?.addEventListener('click', () => switchBatchStep(4));
+  document.getElementById('back-to-step-1-btn')?.addEventListener('click', () => switchBatchStep(1));
+  document.getElementById('back-to-step-2-btn')?.addEventListener('click', () => switchBatchStep(2));
+  document.getElementById('back-to-step-3-btn')?.addEventListener('click', () => switchBatchStep(3));
+
+  document.getElementById('upload-select-all-btn')?.addEventListener('click', () => {
+    selectAllFiles();
+    renderUploadQueue();
+  });
+
+  document.getElementById('upload-clear-all-btn')?.addEventListener('click', () => {
+    clearFiles();
+    renderUploadQueue();
+  });
+}
+
+function switchBatchStep(step) {
+  const { files, isProcessing } = getState();
+
+  if (step === 2 && files.filter(f => f.status === 'loaded').length === 0) {
+    showToast('请先上传图片', 'warning');
+    return;
+  }
+
+  if (step === 3 && files.filter(f => f.processResult.status === 'done').length === 0) {
+    showToast('请先完成抠图处理', 'warning');
+    return;
+  }
+
+  if (step === 4 && files.filter(f => f.processResult.status === 'done').length === 0) {
+    showToast('请先完成抠图处理', 'warning');
+    return;
+  }
+
+  if (isProcessing && step !== 2) {
+    showToast('正在处理中，请等待完成', 'warning');
+    return;
+  }
+
+  setStep(step);
+
+  document.querySelectorAll('.batch-step-panel').forEach(panel => {
+    panel.classList.remove('active');
+  });
+
+  const targetPanel = document.getElementById(`batch-step-${step}`);
+  if (targetPanel) targetPanel.classList.add('active');
+
+  document.querySelectorAll('.batch-step-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.step) === step);
+  });
+
+  if (step === 1) renderUploadQueue();
+  if (step === 2) renderProcessPanel();
+  if (step === 3) renderNamingPreview();
+  if (step === 4) renderDownloadPanel();
+}
+
+function setupBatchSubscriptions() {
+  subscribe('filesChanged', () => {
+    renderUploadQueue();
+  });
+
+  subscribe('fileUpdated', () => {
+    const { currentStep } = getState();
+    if (currentStep === 1) renderUploadQueue();
+  });
+
+  subscribe('selectionChanged', () => {
+    const { currentStep } = getState();
+    if (currentStep === 1) renderUploadQueue();
+    if (currentStep === 4) renderDownloadPanel();
+  });
+
+  subscribe('processProgress', () => {
+    const { currentStep } = getState();
+    if (currentStep === 2) renderProcessPanel();
+  });
+
+  subscribe('processComplete', (data) => {
+    renderProcessPanel();
+    if (data?.cancelled) return;
+    showToast('批量抠图处理完成！', 'success');
+  });
+
+  subscribe('processCancelled', () => {
+    renderProcessPanel();
+    showToast('已取消处理', 'info');
+  });
+
+  subscribe('uploadBatchComplete', (data) => {
+    if (data.errorCount > 0) {
+      showToast(`已添加 ${data.addedCount} 个文件，${data.errorCount} 个失败`, 'warning');
+    } else if (data.addedCount > 0) {
+      showToast(`已添加 ${data.addedCount} 个文件`, 'success');
+    }
+  });
+
+  subscribe('uploadError', (data) => {
+    showToast(`${data.file}: ${data.error}`, 'error');
+  });
+
+  subscribe('downloadStart', () => {
+    const progressSection = document.getElementById('download-progress-section');
+    if (progressSection) progressSection.style.display = '';
+  });
+
+  subscribe('downloadProgress', (data) => {
+    const progressBar = document.getElementById('download-progress-bar');
+    const progressText = document.getElementById('download-progress-text');
+    if (progressBar) progressBar.style.width = data.percent + '%';
+    if (progressText) {
+      const phaseText = { packing: '打包中', compressing: '压缩中', downloading: '下载中' }[data.phase] || '处理中';
+      progressText.textContent = `${phaseText}... ${data.percent}%`;
+    }
+  });
+
+  subscribe('downloadComplete', (data) => {
+    const progressSection = document.getElementById('download-progress-section');
+    if (progressSection) progressSection.style.display = 'none';
+    showToast(`下载完成！共 ${data.total} 个文件`, 'success');
+  });
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  const icon = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' }[type] || '';
+
+  toast.innerHTML = `
+    <span class="toast-icon">${icon}</span>
+    <span class="toast-message">${message}</span>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+init().catch(error => {
+  console.error('初始化失败:', error);
+  alert('初始化失败，请刷新页面重试');
+});
