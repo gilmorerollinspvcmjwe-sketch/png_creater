@@ -674,7 +674,8 @@ function detectAssets() {
       bgMask: Array.from(singleState.bgMask),
       mergeDistance: parseInt(singleElements.mergeDistance.value),
       minArea: parseInt(singleElements.minArea.value),
-      padding: parseInt(singleElements.padding.value)
+      padding: parseInt(singleElements.padding.value),
+      deduplicate: document.getElementById('deduplicate-assets')?.checked || false
     }
   });
 

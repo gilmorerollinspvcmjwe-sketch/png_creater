@@ -226,6 +226,7 @@ function processSingleFile(fileItem, settings, preset) {
             mergeDistance: 24,
             minArea: 500,
             padding: 12,
+            deduplicate: false,
           },
         });
       } else if (type === 'error' || error) {

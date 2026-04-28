@@ -911,7 +911,7 @@ function applyEdgeRemoval(data, width, height, bgMask, intensity) {
   }
 }
 
-function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
+function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding, deduplicate = false }) {
   const { width, height, data } = imageData;
   const mask = new Uint8Array(bgMask.length);
   
@@ -953,7 +953,13 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
     return a.minY - b.minY;
   });
   
-  const assets = filteredRegions.map((region, index) => {
+  // 如果需要去重，先合并重叠区域
+  let finalRegions = filteredRegions;
+  if (deduplicate) {
+    finalRegions = mergeOverlappingRegions(filteredRegions, originalMask, width, height);
+  }
+  
+  const assets = finalRegions.map((region, index) => {
     // 从闭运算区域出发，在原始掩码上精确提取像素
     const seeds = [];
     for (let y = region.minY; y <= region.maxY; y++) {
@@ -1040,6 +1046,60 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
   });
   
   return assets;
+}
+
+function mergeOverlappingRegions(regions, mask, width, height) {
+  if (regions.length <= 1) return regions;
+  
+  const SIMILARITY_THRESHOLD = 0.9;
+  const OVERLAP_THRESHOLD = 0.3;
+  const merged = [];
+  const used = new Uint8Array(regions.length);
+  
+  for (let i = 0; i < regions.length; i++) {
+    if (used[i]) continue;
+    
+    let current = { ...regions[i] };
+    used[i] = 1;
+    
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let j = 0; j < regions.length; j++) {
+        if (used[j]) continue;
+        
+        const overlap = calcOverlap(current, regions[j]);
+        if (overlap > OVERLAP_THRESHOLD) {
+          // 合并区域：取并集
+          current.minX = Math.min(current.minX, regions[j].minX);
+          current.maxX = Math.max(current.maxX, regions[j].maxX);
+          current.minY = Math.min(current.minY, regions[j].minY);
+          current.maxY = Math.max(current.maxY, regions[j].maxY);
+          used[j] = 1;
+          changed = true;
+        }
+      }
+    }
+    
+    merged.push(current);
+  }
+  
+  return merged;
+}
+
+function calcOverlap(r1, r2) {
+  const x1 = Math.max(r1.minX, r2.minX);
+  const y1 = Math.max(r1.minY, r2.minY);
+  const x2 = Math.min(r1.maxX, r2.maxX);
+  const y2 = Math.min(r1.maxY, r2.maxY);
+  
+  if (x1 > x2 || y1 > y2) return 0;
+  
+  const overlapArea = (x2 - x1 + 1) * (y2 - y1 + 1);
+  const area1 = (r1.maxX - r1.minX + 1) * (r1.maxY - r1.minY + 1);
+  const area2 = (r2.maxX - r2.minX + 1) * (r2.maxY - r2.minY + 1);
+  
+  return overlapArea / Math.min(area1, area2);
 }
 
 function closingMorphology(mask, width, height, iterations) {
