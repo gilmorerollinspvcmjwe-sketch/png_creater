@@ -115,6 +115,13 @@
 .range-row { display: flex; align-items: center; gap: 8px; }
 .range-row input[type="range"] { flex: 1; }
 
+.hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: block;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

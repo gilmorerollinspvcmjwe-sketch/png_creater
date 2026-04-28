@@ -24,8 +24,11 @@
       </div>
       <div class="header-right">
         <span id="file-name" style="font-size:12px;color:var(--text-secondary)"></span>
+        <span id="file-size" style="font-size:12px;color:var(--text-muted)"></span>
+        <span id="file-dimension" style="font-size:12px;color:var(--text-muted)"></span>
         <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" hidden>
         <button id="upload-btn" class="btn btn-primary btn-sm" style="display:none">上传图片</button>
+        <button id="replace-btn" class="btn btn-secondary btn-sm" disabled>替换图片</button>
       </div>
     </header>
 
@@ -74,6 +77,12 @@
               <div class="control-group">
                 <label for="dilate-erode">膨胀/腐蚀 <span class="range-val" id="dilate-erode-value">0</span></label>
                 <input type="range" id="dilate-erode" min="-5" max="10" value="0">
+              </div>
+
+              <div class="control-group">
+                <label for="edge-smooth">边缘平滑 <span class="range-val" id="edge-smooth-value">0</span></label>
+                <input type="range" id="edge-smooth" min="0" max="3" value="0">
+                <small class="hint">0=关闭, 1=轻度, 2=中度, 3=强度</small>
               </div>
 
               <div class="section" style="margin-top:12px"><div class="section-title">素材识别</div></div>
@@ -190,6 +199,19 @@
             <label class="checkbox-row" style="margin-top:4px">
               <input type="checkbox" id="trim-transparent" checked> 裁剪透明边缘
             </label>
+
+            <div class="section" style="margin-top:16px"><div class="section-title">数据导出</div></div>
+            <div class="control-group">
+              <label class="checkbox-row">
+                <input type="checkbox" id="export-json-hash" checked> TexturePacker JSON (Hash)
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="export-json-array"> TexturePacker JSON (Array)
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="export-css"> CSS Sprite
+              </label>
+            </div>
           </div>
         </section>
 
@@ -342,22 +364,22 @@
             <div class="section">
               <div class="section-title">颜色标注</div>
               <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">先标注背景色和轮廓色，再检测</p>
-              <div class="control-group"><label>背景色</label><div class="color-pick-row"><input type="color" id="ir-bg-color" value="#ffffff"><span class="color-hex" id="ir-bg-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="ir-bg-pick-btn">🧪 取色</button></div></div>
-              <div class="control-group"><label>轮廓色（可选）</label><div class="color-pick-row"><input type="color" id="ir-outline-color" value="#000000"><span class="color-hex" id="ir-outline-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="ir-outline-pick-btn">🧪 取色</button></div></div>
-              <div class="control-group"><label>轮廓容差 <span class="range-val" id="outline-tol-val">80</span></label><input type="range" id="outline-tolerance" min="1" max="100" value="80"></div>
-              <div class="control-group"><label>检测灵敏度 <span class="range-val" id="detect-sens-val">30</span></label><input type="range" id="detect-sensitivity" min="1" max="100" value="30"></div>
+              <div class="control-group"><label>背景色</label><div class="color-pick-row"><input type="color" id="ir-bg-color" value="#ffffff"><span class="color-hex" id="ir-bg-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-ir-bg-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>轮廓色（可选）</label><div class="color-pick-row"><input type="color" id="ir-outline-color" value="#000000"><span class="color-hex" id="ir-outline-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-ir-outline-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>轮廓容差 <span class="range-val" id="split-outline-tol-val">80</span></label><input type="range" id="split-outline-tolerance" min="1" max="100" value="80"></div>
+              <div class="control-group"><label>检测灵敏度 <span class="range-val" id="split-detect-sens-val">30</span></label><input type="range" id="split-detect-sensitivity" min="1" max="100" value="30"></div>
               <div class="control-group"><label>最小面积 <span class="range-val" id="split-min-area-val">100</span></label><input type="range" id="split-min-area" min="10" max="5000" value="100" step="10"></div>
-              <div class="control-group"><label>轮廓外扩 <span class="range-val" id="dilate-px-val">-1</span></label><input type="range" id="dilate-px" min="-5" max="10" value="-1"></div>
+              <div class="control-group"><label>轮廓外扩 <span class="range-val" id="split-dilate-px-val">-1</span></label><input type="range" id="split-dilate-px" min="-5" max="10" value="-1"></div>
               <button class="btn btn-primary btn-full" id="ir-detect-btn" style="margin-top:6px">🧠 异形检测素材</button>
             </div>
 
             <div class="section" id="ir-inner-bg-section" style="display:none">
               <div class="section-title">内轮廓抠图</div>
               <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">去除已检测区域内部的背景色</p>
-              <div class="control-group"><label>内部背景色</label><div class="color-pick-row"><input type="color" id="inner-bg-color" value="#ffffff"><span class="color-hex" id="inner-bg-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="inner-bg-pick-btn">🧪 取色</button></div></div>
-              <div class="control-group"><label>内部轮廓色（可选）</label><div class="color-pick-row"><input type="color" id="inner-outline-color" value="#000000"><span class="color-hex" id="inner-outline-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="inner-outline-pick-btn">🧪 取色</button></div></div>
-              <div class="control-group"><label>内部容差 <span class="range-val" id="inner-tol-val">50</span></label><input type="range" id="inner-tolerance" min="1" max="100" value="50"></div>
-              <div class="control-group"><label>内扣外扩 <span class="range-val" id="inner-dilate-px-val">-1</span></label><input type="range" id="inner-dilate-px" min="-5" max="10" value="-1"></div>
+              <div class="control-group"><label>内部背景色</label><div class="color-pick-row"><input type="color" id="inner-bg-color" value="#ffffff"><span class="color-hex" id="inner-bg-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-inner-bg-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>内部轮廓色（可选）</label><div class="color-pick-row"><input type="color" id="inner-outline-color" value="#000000"><span class="color-hex" id="inner-outline-color-hex">未取色</span><button class="btn btn-sm btn-secondary pick-btn" id="split-inner-outline-pick-btn">🧪 取色</button></div></div>
+              <div class="control-group"><label>内部容差 <span class="range-val" id="split-inner-tol-val">50</span></label><input type="range" id="split-inner-tolerance" min="1" max="100" value="50"></div>
+              <div class="control-group"><label>内扣外扩 <span class="range-val" id="split-inner-dilate-px-val">-1</span></label><input type="range" id="split-inner-dilate-px" min="-5" max="10" value="-1"></div>
               <button class="btn btn-primary btn-full" id="ir-apply-inner-btn" style="margin-top:6px">🕳️ 去除内部背景</button>
             </div>
 

@@ -460,7 +460,7 @@ function trimTransparent(data) {
   };
 }
 
-function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode = 0, selectedColor }) {
+function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode = 0, selectedColor, smoothEdge = 0 }) {
   const { width, height, data } = imageData;
   const pixelData = new Uint8ClampedArray(data);
   
@@ -504,6 +504,12 @@ function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode =
     applyEdgeRemoval(pixelData, width, height, bgMask, edgeRemoval);
   }
   
+  // 边缘平滑处理
+  if (smoothEdge > 0) {
+    const smoothed = smoothEdges(pixelData, bgMask, width, height, smoothEdge);
+    pixelData.set(smoothed);
+  }
+  
   return {
     imageData: {
       width,
@@ -512,6 +518,58 @@ function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode =
     },
     bgMask: Array.from(bgMask)
   };
+}
+
+function smoothEdges(pixelData, bgMask, width, height, edgeWidth) {
+  const result = new Uint8ClampedArray(pixelData);
+  const edgePixels = [];
+  
+  // 1. 找到所有边界像素（前景像素的 8-邻域中有背景像素）
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      if (bgMask[idx] === 0) {
+        let hasBg = false;
+        for (let dy = -1; dy <= 1 && !hasBg; dy++) {
+          for (let dx = -1; dx <= 1 && !hasBg; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (bgMask[(y + dy) * width + (x + dx)] === 1) {
+              hasBg = true;
+            }
+          }
+        }
+        if (hasBg) {
+          edgePixels.push(idx);
+        }
+      }
+    }
+  }
+  
+  // 2. 对边界像素平滑 alpha
+  for (const idx of edgePixels) {
+    const x = idx % width;
+    const y = Math.floor(idx / width);
+    
+    let fgCount = 0;
+    let total = 0;
+    
+    for (let dy = -edgeWidth; dy <= edgeWidth; dy++) {
+      for (let dx = -edgeWidth; dx <= edgeWidth; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          total++;
+          if (bgMask[ny * width + nx] === 0) {
+            fgCount++;
+          }
+        }
+      }
+    }
+    
+    const alpha = Math.round((fgCount / total) * 255);
+    result[idx * 4 + 3] = alpha;
+  }
+  
+  return result;
 }
 
 function applyForegroundMorphology(bgMask, width, height, amount) {
@@ -729,6 +787,7 @@ function createWhiteMask(data, width, height, tolerance) {
 
 function createSolidColorMask(data, width, height, targetColor, tolerance) {
   const mask = new Uint8Array(width * height);
+  if (!targetColor || !Array.isArray(targetColor) || targetColor.length < 3) return mask;
   
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
@@ -860,8 +919,14 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
     mask[i] = bgMask[i] === 1 ? 0 : 1;
   }
   
-  const dilatedMask = dilateMask(mask, width, height, Math.floor(mergeDistance / 2));
-  const regions = findConnectedRegions(dilatedMask, width, height);
+  // 掩码 A：原始掩码（用于精确像素提取）
+  const originalMask = new Uint8Array(mask);
+  
+  // 掩码 B：闭运算掩码（用于连通性分析）
+  const closedMask = closingMorphology(mask, width, height, 1);
+  
+  // 在闭运算掩码上找连通区域
+  const regions = findConnectedRegions(closedMask, width, height);
   
   const filteredRegions = regions
     .filter(region => {
@@ -889,10 +954,53 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
   });
   
   const assets = filteredRegions.map((region, index) => {
-    const x = Math.max(0, region.minX - padding);
-    const y = Math.max(0, region.minY - padding);
-    const w = Math.min(width - x, region.maxX - region.minX + 1 + padding * 2);
-    const h = Math.min(height - y, region.maxY - region.minY + 1 + padding * 2);
+    // 从闭运算区域出发，在原始掩码上精确提取像素
+    const seeds = [];
+    for (let y = region.minY; y <= region.maxY; y++) {
+      for (let x = region.minX; x <= region.maxX; x++) {
+        if (originalMask[y * width + x] === 1) {
+          seeds.push({ x, y });
+        }
+      }
+    }
+    
+    // 8-连通 BFS，只收集原始前景像素
+    const exactPixels = [];
+    const visited = new Uint8Array(width * height);
+    const queue = [...seeds];
+    queue.forEach(p => visited[p.y * width + p.x] = 1);
+    
+    let head = 0;
+    while (head < queue.length) {
+      const p = queue[head++];
+      exactPixels.push([p.x, p.y]);
+      
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = p.x + dx, ny = p.y + dy;
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height && 
+              !visited[ny * width + nx] && originalMask[ny * width + nx] === 1) {
+            visited[ny * width + nx] = 1;
+            queue.push({ x: nx, y: ny });
+          }
+        }
+      }
+    }
+    
+    // 计算精确边界框
+    let eMinX = width, eMaxX = 0, eMinY = height, eMaxY = 0;
+    exactPixels.forEach(([px, py]) => {
+      if (px < eMinX) eMinX = px;
+      if (px > eMaxX) eMaxX = px;
+      if (py < eMinY) eMinY = py;
+      if (py > eMaxY) eMaxY = py;
+    });
+    
+    const x = Math.max(0, eMinX - padding);
+    const y = Math.max(0, eMinY - padding);
+    const w = Math.min(width - x, eMaxX - eMinX + 1 + padding * 2);
+    const h = Math.min(height - y, eMaxY - eMinY + 1 + padding * 2);
     
     // 生成缩略图（最大 64px 宽）
     const maxThumbSize = 64;
@@ -932,6 +1040,55 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding }) {
   });
   
   return assets;
+}
+
+function closingMorphology(mask, width, height, iterations) {
+  const result = new Uint8Array(mask);
+  
+  // 膨胀
+  for (let i = 0; i < iterations; i++) {
+    const dilated = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (result[y * width + x] === 1) { dilated[y * width + x] = 1; continue; }
+        let found = false;
+        for (let dy = -1; dy <= 1 && !found; dy++) {
+          for (let dx = -1; dx <= 1 && !found; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height && result[ny * width + nx] === 1) {
+              found = true;
+            }
+          }
+        }
+        dilated[y * width + x] = found ? 1 : 0;
+      }
+    }
+    result.set(dilated);
+  }
+  
+  // 腐蚀（恢复边缘）
+  for (let i = 0; i < iterations; i++) {
+    const eroded = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (result[y * width + x] === 0) { eroded[y * width + x] = 0; continue; }
+        let allFg = true;
+        for (let dy = -1; dy <= 1 && allFg; dy++) {
+          for (let dx = -1; dx <= 1 && allFg; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height && result[ny * width + nx] === 0) {
+              allFg = false;
+            }
+          }
+        }
+        eroded[y * width + x] = allFg ? 1 : 0;
+      }
+    }
+    result.set(eroded);
+  }
+  
+  return result;
 }
 
 function dilateMask(mask, width, height, radius) {

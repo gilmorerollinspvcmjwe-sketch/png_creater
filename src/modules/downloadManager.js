@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { getState, subscribe, notify } from './stateManager.js';
 import { getNamingResults } from './namingManager.js';
-import { imageDataToCanvas, canvasToBlob, formatFileSize } from '../utils/helpers.js';
+import { imageDataToCanvas, canvasToBlob, formatFileSize, generateTexturePackerJson, generateTexturePackerJsonArray, generateCssSprite } from '../utils/helpers.js';
 
 export function initDownloadManager() {
   setupDownloadEvents();
@@ -106,11 +106,11 @@ async function downloadAsZip(files, namingResults) {
           manifest.push({
             name: `${baseName}_${String(j + 1).padStart(3, '0')}`,
             file: assetFileName,
-            width: asset.w,
-            height: asset.h,
+            x: asset.x,
+            y: asset.y,
+            w: asset.w,
+            h: asset.h,
             originalName: file.name,
-            sourceX: asset.x,
-            sourceY: asset.y,
           });
         }
       } else {
@@ -138,6 +138,22 @@ async function downloadAsZip(files, namingResults) {
     } catch (e) {
       console.error('Failed to pack file:', file.name, e);
     }
+  }
+
+  // 生成 JSON 数据文件
+  if (manifest.length > 0) {
+    const sourceName = files.length > 0 ? files[0].name.replace(/\.[^.]+$/, '') : 'batch-export';
+    const totalWidth = manifest.reduce((max, a) => Math.max(max, (a.x || 0) + (a.w || 0)), 0);
+    const totalHeight = manifest.reduce((max, a) => Math.max(max, (a.y || 0) + (a.h || 0)), 0);
+
+    const jsonHash = generateTexturePackerJson(manifest, sourceName, totalWidth, totalHeight);
+    zip.file('spritesheet.json', JSON.stringify(jsonHash, null, 2));
+
+    const jsonArray = generateTexturePackerJsonArray(manifest, sourceName, totalWidth, totalHeight);
+    zip.file('spritesheet-array.json', JSON.stringify(jsonArray, null, 2));
+
+    const css = generateCssSprite(manifest, sourceName);
+    zip.file('sprites.css', css);
   }
 
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));

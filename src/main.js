@@ -11,6 +11,7 @@ import {
   handleInnerContourRemoveResult as handleSplitInnerContourRemoveResult,
 } from './modules/splitMode/splitController.js';
 import { initMergeMode } from './modules/mergeMode/mergeController.js';
+import { generateTexturePackerJson, generateTexturePackerJsonArray, generateCssSprite, sanitizeFileName } from './utils/helpers.js';
 
 let currentMode = 'single';
 
@@ -220,6 +221,12 @@ function setupSingleEventListeners() {
 
   if (el.dilateErode) el.dilateErode.addEventListener('input', (e) => {
     el.dilateErodeValue.textContent = e.target.value;
+  });
+
+  const edgeSmoothEl = document.getElementById('edge-smooth');
+  const edgeSmoothValEl = document.getElementById('edge-smooth-value');
+  if (edgeSmoothEl) edgeSmoothEl.addEventListener('input', (e) => {
+    if (edgeSmoothValEl) edgeSmoothValEl.textContent = e.target.value;
   });
 
   if (el.mergeDistance) el.mergeDistance.addEventListener('input', (e) => {
@@ -561,7 +568,8 @@ function processNormal() {
       tolerance: parseInt(singleElements.tolerance.value),
       edgeRemoval: parseInt(singleElements.edgeRemoval.value),
       dilateErode: parseInt(singleElements.dilateErode.value),
-      selectedColor: singleState.selectedBgColor
+      selectedColor: singleState.selectedBgColor,
+      smoothEdge: parseInt(document.getElementById('edge-smooth').value || 0)
     }
   });
 
@@ -711,6 +719,9 @@ function renderCandidates() {
     return;
   }
 
+  const srcData = singleState.processedImageData;
+  const srcW = srcData?.width || 0;
+
   for (const candidate of singleState.candidates) {
     const card = document.createElement('div');
     card.className = 'candidate-card';
@@ -720,39 +731,14 @@ function renderCandidates() {
       card.classList.add('selected');
     }
 
-    // 先设置卡片结构
-    card.innerHTML = `
-      <div class="candidate-preview">
-        <img src="" alt="${candidate.name}">
-      </div>
-      <div class="candidate-info">
-        <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
-        <div class="candidate-meta">${candidate.w} x ${candidate.h}</div>
-        <div class="candidate-actions">
-          <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
-          <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
-        </div>
-      </div>
-    `;
-
-    // 然后渲染缩略图
-    const previewImg = card.querySelector('.candidate-preview img');
+    // 从整图提取像素
     const canvas = document.createElement('canvas');
     canvas.width = candidate.w;
     canvas.height = candidate.h;
     const ctx = canvas.getContext('2d');
 
-    if (candidate.thumbDataURL) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, candidate.w, candidate.h);
-        previewImg.src = canvas.toDataURL();
-      };
-      img.src = candidate.thumbDataURL;
-    } else if (singleState.processedImageData) {
+    if (srcData) {
       const imageData = ctx.createImageData(candidate.w, candidate.h);
-      const srcData = singleState.processedImageData;
-      const srcW = srcData.width;
       for (let ay = 0; ay < candidate.h; ay++) {
         for (let ax = 0; ax < candidate.w; ax++) {
           const srcX = candidate.x + ax;
@@ -768,8 +754,21 @@ function renderCandidates() {
         }
       }
       ctx.putImageData(imageData, 0, 0);
-      previewImg.src = canvas.toDataURL();
     }
+
+    card.innerHTML = `
+      <div class="candidate-preview">
+        <img src="${canvas.toDataURL()}" alt="${candidate.name}">
+      </div>
+      <div class="candidate-info">
+        <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
+        <div class="candidate-meta">${candidate.w} x ${candidate.h}</div>
+        <div class="candidate-actions">
+          <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
+          <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
+        </div>
+      </div>
+    `;
 
     singleElements.candidatesGrid.appendChild(card);
   }
@@ -1284,13 +1283,31 @@ async function exportCandidates(candidates) {
     manifest.push({
       name: candidate.name,
       file: fileName,
-      width: candidate.w,
-      height: candidate.h,
-      sourceX: candidate.x,
-      sourceY: candidate.y,
-      sourceWidth: candidate.w,
-      sourceHeight: candidate.h
+      x: candidate.x,
+      y: candidate.y,
+      w: candidate.w,
+      h: candidate.h
     });
+  }
+
+  // 生成 JSON 数据文件
+  const sourceName = singleState.fileName || 'source-image';
+  const sourceWidth = srcData?.width || 0;
+  const sourceHeight = srcData?.height || 0;
+
+  if (document.getElementById('export-json-hash')?.checked) {
+    const jsonHash = generateTexturePackerJson(manifest, sourceName, sourceWidth, sourceHeight);
+    zip.file('spritesheet.json', JSON.stringify(jsonHash, null, 2));
+  }
+
+  if (document.getElementById('export-json-array')?.checked) {
+    const jsonArray = generateTexturePackerJsonArray(manifest, sourceName, sourceWidth, sourceHeight);
+    zip.file('spritesheet-array.json', JSON.stringify(jsonArray, null, 2));
+  }
+
+  if (document.getElementById('export-css')?.checked) {
+    const css = generateCssSprite(manifest, sourceName);
+    zip.file('sprites.css', css);
   }
 
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));

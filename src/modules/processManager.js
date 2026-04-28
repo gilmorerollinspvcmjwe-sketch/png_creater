@@ -254,6 +254,7 @@ function processSingleFile(fileItem, settings, preset) {
         tolerance: preset.tolerance,
         edgeRemoval: preset.edgeRemoval,
         selectedColor: null,
+        smoothEdge: 1,
       },
     });
   });
