@@ -147,42 +147,44 @@ function cacheSingleElements() {
 function setupSingleEventListeners() {
   const el = singleElements;
 
-  el.uploadBtn.addEventListener('click', () => el.fileInput.click());
-  el.replaceBtn.addEventListener('click', () => el.fileInput.click());
-  el.fileInput.addEventListener('change', handleFileSelect);
+  if (el.uploadBtn) el.uploadBtn.addEventListener('click', () => el.fileInput.click());
+  if (el.replaceBtn) el.replaceBtn.addEventListener('click', () => el.fileInput.click());
+  if (el.fileInput) el.fileInput.addEventListener('change', handleFileSelect);
 
-  el.uploadArea.addEventListener('dragover', handleDragOver);
-  el.uploadArea.addEventListener('dragleave', handleDragLeave);
-  el.uploadArea.addEventListener('drop', handleDrop);
-  el.uploadArea.addEventListener('click', () => {
-    if (!singleState.originalImage) {
-      el.fileInput.click();
-    }
-  });
+  if (el.uploadArea) {
+    el.uploadArea.addEventListener('dragover', handleDragOver);
+    el.uploadArea.addEventListener('dragleave', handleDragLeave);
+    el.uploadArea.addEventListener('drop', handleDrop);
+    el.uploadArea.addEventListener('click', () => {
+      if (!singleState.originalImage) {
+        el.fileInput.click();
+      }
+    });
+  }
 
-  el.tolerance.addEventListener('input', (e) => {
+  if (el.tolerance) el.tolerance.addEventListener('input', (e) => {
     el.toleranceValue.textContent = e.target.value;
   });
 
-  el.edgeRemoval.addEventListener('input', (e) => {
+  if (el.edgeRemoval) el.edgeRemoval.addEventListener('input', (e) => {
     el.edgeRemovalValue.textContent = e.target.value;
   });
 
-  el.mergeDistance.addEventListener('input', (e) => {
+  if (el.mergeDistance) el.mergeDistance.addEventListener('input', (e) => {
     el.mergeDistanceValue.textContent = e.target.value;
   });
 
-  el.minArea.addEventListener('input', (e) => {
+  if (el.minArea) el.minArea.addEventListener('input', (e) => {
     el.minAreaValue.textContent = e.target.value;
   });
 
-  el.padding.addEventListener('input', (e) => {
+  if (el.padding) el.padding.addEventListener('input', (e) => {
     el.paddingValue.textContent = e.target.value;
   });
 
-  el.processBtn.addEventListener('click', processImage);
+  if (el.processBtn) el.processBtn.addEventListener('click', processImage);
 
-  el.colorPickerBtn.addEventListener('click', () => {
+  if (el.colorPickerBtn) el.colorPickerBtn.addEventListener('click', () => {
     if (!singleState.originalImage) {
       alert('请先上传图片');
       return;
@@ -196,42 +198,36 @@ function setupSingleEventListeners() {
     }
   });
 
-  el.originalPreview.addEventListener('click', handleImageClick);
+  if (el.originalPreview) el.originalPreview.addEventListener('click', handleImageClick);
 
-  el.darkBgToggle.addEventListener('change', updatePreviewBackground);
-  el.lightBgToggle.addEventListener('change', updatePreviewBackground);
+  if (el.darkBgToggle) el.darkBgToggle.addEventListener('change', updatePreviewBackground);
+  if (el.lightBgToggle) el.lightBgToggle.addEventListener('change', updatePreviewBackground);
 
-  el.exportSelectedBtn.addEventListener('click', exportSelected);
-  el.exportAllBtn.addEventListener('click', exportAll);
-  el.downloadZipBtn.addEventListener('click', downloadZip);
+  if (el.exportSelectedBtn) el.exportSelectedBtn.addEventListener('click', exportSelected);
+  if (el.exportAllBtn) el.exportAllBtn.addEventListener('click', exportAll);
+  if (el.downloadZipBtn) el.downloadZipBtn.addEventListener('click', downloadZip);
 }
 
 function setupModeSwitch() {
-  const modeSingleBtn = document.getElementById('mode-single');
-  const modeBatchBtn = document.getElementById('mode-batch');
-  const singlePanel = document.getElementById('single-mode-panel');
-  const batchPanel = document.getElementById('batch-mode-panel');
-  const singleHeaderInfo = document.getElementById('single-header-info');
-  const singleHeaderActions = document.getElementById('single-header-actions');
+  const modeTabs = document.querySelectorAll('.mode-tab');
+  const panels = document.querySelectorAll('.mode-panel');
 
-  modeSingleBtn.addEventListener('click', () => {
-    currentMode = 'single';
-    modeSingleBtn.classList.add('active');
-    modeBatchBtn.classList.remove('active');
-    singlePanel.classList.add('active');
-    batchPanel.classList.remove('active');
-    singleHeaderInfo.style.display = '';
-    singleHeaderActions.style.display = '';
-  });
+  modeTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const mode = tab.dataset.mode;
+      currentMode = mode;
 
-  modeBatchBtn.addEventListener('click', () => {
-    currentMode = 'batch';
-    modeBatchBtn.classList.add('active');
-    modeSingleBtn.classList.remove('active');
-    batchPanel.classList.add('active');
-    singlePanel.classList.remove('active');
-    singleHeaderInfo.style.display = 'none';
-    singleHeaderActions.style.display = 'none';
+      modeTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      panels.forEach(panel => {
+        if (panel.id === `${mode}-mode-panel`) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+    });
   });
 }
 
