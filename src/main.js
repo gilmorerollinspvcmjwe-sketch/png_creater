@@ -4,7 +4,12 @@ import { initUploadManager, handleFiles, renderUploadQueue, deleteFile as delete
 import { initProcessManager, startBatchProcess, cancelBatchProcess, renderProcessPanel } from './modules/processManager.js';
 import { initNamingManager, renderNamingPreview } from './modules/namingManager.js';
 import { initDownloadManager, startBatchDownload, renderDownloadPanel } from './modules/downloadManager.js';
-import { initSplitMode } from './modules/splitMode/splitController.js';
+import {
+  initSplitMode,
+  setSplitWorker,
+  handleIrregularDetectResult as handleSplitIrregularDetectResult,
+  handleInnerContourRemoveResult as handleSplitInnerContourRemoveResult,
+} from './modules/splitMode/splitController.js';
 import { initMergeMode } from './modules/mergeMode/mergeController.js';
 
 let currentMode = 'single';
@@ -45,6 +50,8 @@ const singleElements = {
   toleranceValue: null,
   edgeRemoval: null,
   edgeRemovalValue: null,
+  dilateErode: null,
+  dilateErodeValue: null,
   mergeDistance: null,
   mergeDistanceValue: null,
   minArea: null,
@@ -67,23 +74,22 @@ const singleElements = {
 };
 
 let worker = null;
+let workerUrl = null;
 let colorPickerMode = false;
 let processTimeout = null;
 
-async function init() {
-  try {
+async function createImageWorker() {
+  if (!workerUrl) {
     const response = await fetch('/src/workers/imageProcessor.js');
     const workerCode = await response.text();
     const blob = new Blob([workerCode], { type: 'application/javascript' });
-    const workerUrl = URL.createObjectURL(blob);
-    worker = new Worker(workerUrl);
-  } catch (e) {
-    console.error('Failed to create worker:', e);
-    alert('无法创建图像处理 Worker，请刷新页面重试');
-    return;
+    workerUrl = URL.createObjectURL(blob);
   }
+  return new Worker(workerUrl);
+}
 
-  worker.onmessage = function(e) {
+function attachWorkerHandlers(imageWorker) {
+  imageWorker.onmessage = function(e) {
     const { type, result, assets, regions, error } = e.data;
 
     switch (type) {
@@ -94,10 +100,18 @@ async function init() {
         handleDetectedAssets(assets);
         break;
       case 'irregularDetectResult':
-        handleIrregularDetectResult(regions);
+        if (currentMode === 'split') {
+          handleSplitIrregularDetectResult(regions);
+        } else {
+          handleIrregularDetectResult(regions);
+        }
         break;
       case 'innerContourRemoveResult':
-        handleInnerContourRemoveResult(regions);
+        if (currentMode === 'split') {
+          handleSplitInnerContourRemoveResult(regions);
+        } else {
+          handleInnerContourRemoveResult(regions);
+        }
         break;
       case 'error':
         console.error('Worker 错误:', error);
@@ -108,11 +122,22 @@ async function init() {
     }
   };
 
-  worker.onerror = function(e) {
+  imageWorker.onerror = function(e) {
     console.error('Worker error:', e);
     hideLoading();
     alert('处理图片时出错: ' + e.message);
   };
+}
+
+async function init() {
+  try {
+    worker = await createImageWorker();
+    attachWorkerHandlers(worker);
+  } catch (e) {
+    console.error('Failed to create worker:', e);
+    alert('无法创建图像处理 Worker，请刷新页面重试');
+    return;
+  }
 
   cacheSingleElements();
   setupSingleEventListeners();
@@ -144,6 +169,8 @@ function cacheSingleElements() {
   singleElements.toleranceValue = document.getElementById('tolerance-value');
   singleElements.edgeRemoval = document.getElementById('edge-removal');
   singleElements.edgeRemovalValue = document.getElementById('edge-removal-value');
+  singleElements.dilateErode = document.getElementById('dilate-erode');
+  singleElements.dilateErodeValue = document.getElementById('dilate-erode-value');
   singleElements.mergeDistance = document.getElementById('merge-distance');
   singleElements.mergeDistanceValue = document.getElementById('merge-distance-value');
   singleElements.minArea = document.getElementById('min-area');
@@ -189,6 +216,10 @@ function setupSingleEventListeners() {
 
   if (el.edgeRemoval) el.edgeRemoval.addEventListener('input', (e) => {
     el.edgeRemovalValue.textContent = e.target.value;
+  });
+
+  if (el.dilateErode) el.dilateErode.addEventListener('input', (e) => {
+    el.dilateErodeValue.textContent = e.target.value;
   });
 
   if (el.mergeDistance) el.mergeDistance.addEventListener('input', (e) => {
@@ -282,6 +313,9 @@ function setupSingleEventListeners() {
   if (el.exportSelectedBtn) el.exportSelectedBtn.addEventListener('click', exportSelected);
   if (el.exportAllBtn) el.exportAllBtn.addEventListener('click', exportAll);
   if (el.downloadZipBtn) el.downloadZipBtn.addEventListener('click', downloadZip);
+  document.getElementById('select-all-candidates')?.addEventListener('click', selectAllCandidates);
+  document.getElementById('invert-candidates')?.addEventListener('click', invertCandidates);
+  document.getElementById('loading-cancel-btn')?.addEventListener('click', cancelSingleProcessing);
 
   // 清除上传图片按钮
   if (el.clearUploadBtn) {
@@ -519,6 +553,7 @@ function processNormal() {
       bgMode: singleElements.bgMode.value,
       tolerance: parseInt(singleElements.tolerance.value),
       edgeRemoval: parseInt(singleElements.edgeRemoval.value),
+      dilateErode: parseInt(singleElements.dilateErode.value),
       selectedColor: singleState.selectedBgColor
     }
   });
@@ -652,20 +687,43 @@ function renderCandidates() {
     canvas.width = candidate.w;
     canvas.height = candidate.h;
     const ctx = canvas.getContext('2d');
-    const imageData = new ImageData(
-      new Uint8ClampedArray(candidate.imageData.data),
-      candidate.w,
-      candidate.h
-    );
-    ctx.putImageData(imageData, 0, 0);
+
+    // 优先使用缩略图，否则从整图提取
+    if (candidate.thumbDataURL) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, candidate.w, candidate.h);
+        card.querySelector('.candidate-preview img').src = canvas.toDataURL();
+      };
+      img.src = candidate.thumbDataURL;
+    } else if (singleState.processedImageData) {
+      const imageData = ctx.createImageData(candidate.w, candidate.h);
+      const srcData = singleState.processedImageData;
+      const srcW = srcData.width;
+      for (let ay = 0; ay < candidate.h; ay++) {
+        for (let ax = 0; ax < candidate.w; ax++) {
+          const srcX = candidate.x + ax;
+          const srcY = candidate.y + ay;
+          if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+            const srcIdx = (srcY * srcW + srcX) * 4;
+            const dstIdx = (ay * candidate.w + ax) * 4;
+            imageData.data[dstIdx] = srcData.data[srcIdx];
+            imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+            imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+            imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
 
     card.innerHTML = `
       <div class="candidate-preview">
-        <img src="${canvas.toDataURL()}" alt="${candidate.name}">
+        <img src="" alt="${candidate.name}">
       </div>
       <div class="candidate-info">
         <input type="text" value="${candidate.name}" data-id="${candidate.id}" class="candidate-name-input">
-        <div class="candidate-meta">${candidate.w} x ${candidate.h} | (${candidate.x}, ${candidate.y})</div>
+        <div class="candidate-meta">${candidate.w} x ${candidate.h}</div>
         <div class="candidate-actions">
           <button class="btn btn-danger btn-delete" data-id="${candidate.id}">删除</button>
           <button class="btn btn-secondary btn-download" data-id="${candidate.id}">下载</button>
@@ -713,7 +771,7 @@ function deleteCandidate(id) {
   singleState.candidates = singleState.candidates.filter(c => c.id !== id);
   singleState.selectedCandidates.delete(id);
   singleElements.candidateCount.textContent = singleState.candidates.length;
-  renderCandidates();
+  renderCandidateList();
   updateExportButtons();
 }
 
@@ -723,8 +781,50 @@ function toggleCandidateSelection(id) {
   } else {
     singleState.selectedCandidates.add(id);
   }
-  renderCandidates();
+  renderCandidateList();
   updateExportButtons();
+}
+
+function renderCandidateList() {
+  if (singleElements.bgMode?.value === 'irregular') {
+    renderIrregularCandidates();
+    renderIrregularPreview();
+  } else {
+    renderCandidates();
+  }
+}
+
+function selectAllCandidates() {
+  singleState.selectedCandidates = new Set(singleState.candidates.map(candidate => candidate.id));
+  renderCandidateList();
+  updateExportButtons();
+}
+
+function invertCandidates() {
+  const inverted = new Set();
+  for (const candidate of singleState.candidates) {
+    if (!singleState.selectedCandidates.has(candidate.id)) {
+      inverted.add(candidate.id);
+    }
+  }
+  singleState.selectedCandidates = inverted;
+  renderCandidateList();
+  updateExportButtons();
+}
+
+async function cancelSingleProcessing() {
+  clearTimeout(processTimeout);
+  if (worker) worker.terminate();
+  try {
+    worker = await createImageWorker();
+    attachWorkerHandlers(worker);
+    setSplitWorker(worker);
+  } catch (error) {
+    console.error('重新创建 Worker 失败:', error);
+    alert('取消后恢复处理器失败，请刷新页面');
+  }
+  hideLoading();
+  showToast('已取消处理', 'info');
 }
 
 function updateExportButtons() {
@@ -742,12 +842,27 @@ function downloadSingleCandidate(id) {
   canvas.width = candidate.w;
   canvas.height = candidate.h;
   const ctx = canvas.getContext('2d');
-  const imageData = new ImageData(
-    new Uint8ClampedArray(candidate.imageData.data),
-    candidate.w,
-    candidate.h
-  );
-  ctx.putImageData(imageData, 0, 0);
+
+  if (singleState.processedImageData) {
+    const imageData = ctx.createImageData(candidate.w, candidate.h);
+    const srcData = singleState.processedImageData;
+    const srcW = srcData.width;
+    for (let ay = 0; ay < candidate.h; ay++) {
+      for (let ax = 0; ax < candidate.w; ax++) {
+        const srcX = candidate.x + ax;
+        const srcY = candidate.y + ay;
+        if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+          const srcIdx = (srcY * srcW + srcX) * 4;
+          const dstIdx = (ay * candidate.w + ax) * 4;
+          imageData.data[dstIdx] = srcData.data[srcIdx];
+          imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+          imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+          imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
 
   const link = document.createElement('a');
   link.download = `${candidate.name}.png`;
@@ -1033,6 +1148,7 @@ function clearUpload() {
   if (singleElements.fileName) singleElements.fileName.textContent = '';
   if (singleElements.fileSize) singleElements.fileSize.textContent = '';
   if (singleElements.fileDimension) singleElements.fileDimension.textContent = '';
+  if (singleElements.replaceBtn) singleElements.replaceBtn.disabled = true;
   if (singleElements.processBtn) singleElements.processBtn.disabled = true;
   if (singleElements.transparentPreview) {
     singleElements.transparentPreview.src = '';
@@ -1092,18 +1208,33 @@ async function exportCandidates(candidates) {
   const zip = new JSZip();
   const imagesFolder = zip.folder('images');
   const manifest = [];
+  const srcData = singleState.processedImageData;
+  const srcW = srcData?.width || 0;
 
   for (const candidate of candidates) {
     const canvas = document.createElement('canvas');
     canvas.width = candidate.w;
     canvas.height = candidate.h;
     const ctx = canvas.getContext('2d');
-    const imageData = new ImageData(
-      new Uint8ClampedArray(candidate.imageData.data),
-      candidate.w,
-      candidate.h
-    );
-    ctx.putImageData(imageData, 0, 0);
+
+    if (srcData) {
+      const imageData = ctx.createImageData(candidate.w, candidate.h);
+      for (let ay = 0; ay < candidate.h; ay++) {
+        for (let ax = 0; ax < candidate.w; ax++) {
+          const srcX = candidate.x + ax;
+          const srcY = candidate.y + ay;
+          if (srcX >= 0 && srcX < srcW && srcY >= 0 && srcY < srcData.height) {
+            const srcIdx = (srcY * srcW + srcX) * 4;
+            const dstIdx = (ay * candidate.w + ax) * 4;
+            imageData.data[dstIdx] = srcData.data[srcIdx];
+            imageData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+            imageData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+            imageData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
 
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const fileName = `${candidate.name}.png`;
@@ -1273,8 +1404,9 @@ function setupBatchSubscriptions() {
     if (currentStep === 2) renderProcessPanel();
   });
 
-  subscribe('processComplete', () => {
+  subscribe('processComplete', (data) => {
     renderProcessPanel();
+    if (data?.cancelled) return;
     showToast('批量抠图处理完成！', 'success');
   });
 
@@ -1339,4 +1471,7 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
-await init();
+init().catch(error => {
+  console.error('初始化失败:', error);
+  alert('初始化失败，请刷新页面重试');
+});

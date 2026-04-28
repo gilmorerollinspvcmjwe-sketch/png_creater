@@ -38,6 +38,10 @@ export function initSplitMode(sharedWorker) {
   setupSplitEvents();
 }
 
+export function setSplitWorker(sharedWorker) {
+  worker = sharedWorker;
+}
+
 function setupSplitEvents() {
   const fileInput = document.getElementById('split-file-input');
   const uploadZone = document.getElementById('split-upload-zone');
@@ -83,15 +87,24 @@ function setupSplitEvents() {
   document.getElementById('split-clear-boxes-btn')?.addEventListener('click', () => { splitState.boxes = []; splitState.selectedBox = -1; drawOverlay(); });
   document.getElementById('split-undo-box-btn')?.addEventListener('click', () => { if (splitState.boxes.length > 0) { splitState.boxes.pop(); splitState.selectedBox = -1; drawOverlay(); } });
 
-  document.getElementById('ir-bg-pick-btn')?.addEventListener('click', () => enableColorPick('ir-bg'));
-  document.getElementById('ir-outline-pick-btn')?.addEventListener('click', () => enableColorPick('ir-outline'));
-  document.getElementById('inner-bg-pick-btn')?.addEventListener('click', () => enableColorPick('inner-bg'));
-  document.getElementById('inner-outline-pick-btn')?.addEventListener('click', () => enableColorPick('inner-outline'));
+  document.getElementById('split-ir-bg-pick-btn')?.addEventListener('click', () => enableColorPick('ir-bg'));
+  document.getElementById('split-ir-outline-pick-btn')?.addEventListener('click', () => enableColorPick('ir-outline'));
+  document.getElementById('split-inner-bg-pick-btn')?.addEventListener('click', () => enableColorPick('inner-bg'));
+  document.getElementById('split-inner-outline-pick-btn')?.addEventListener('click', () => enableColorPick('inner-outline'));
 
-  ['outline-tolerance', 'detect-sensitivity', 'split-min-area', 'dilate-px', 'inner-tolerance', 'inner-dilate-px'].forEach(id => {
+  const valueLabelByInputId = {
+    'split-outline-tolerance': 'split-outline-tol-val',
+    'split-detect-sensitivity': 'split-detect-sens-val',
+    'split-min-area': 'split-min-area-val',
+    'split-dilate-px': 'split-dilate-px-val',
+    'split-inner-tolerance': 'split-inner-tol-val',
+    'split-inner-dilate-px': 'split-inner-dilate-px-val',
+  };
+
+  Object.keys(valueLabelByInputId).forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => {
-      const valEl = document.getElementById(id + '-val') || document.getElementById(id.replace('split-', '') + '-val');
+      const valEl = document.getElementById(valueLabelByInputId[id]);
       if (valEl) valEl.textContent = el.value;
     });
   });
@@ -474,10 +487,10 @@ function smartDetectIrregular() {
       imageData: { width: imageData.width, height: imageData.height, data: Array.from(imageData.data) },
       bgColor: splitState.irBgColor,
       outlineColor: splitState.irOutlineColor,
-      outlineTolerance: parseInt(document.getElementById('outline-tolerance').value),
-      sensitivity: parseInt(document.getElementById('detect-sensitivity').value),
+      outlineTolerance: parseInt(document.getElementById('split-outline-tolerance').value),
+      sensitivity: parseInt(document.getElementById('split-detect-sensitivity').value),
       minArea: parseInt(document.getElementById('split-min-area').value),
-      dilatePx: parseInt(document.getElementById('dilate-px').value),
+      dilatePx: parseInt(document.getElementById('split-dilate-px').value),
     }
   });
 }
@@ -514,8 +527,8 @@ function applyInnerBgRemove() {
       selectedIndices: Array.from(splitState.innerSelectedRegions),
       innerBgColor: splitState.innerBgColor,
       innerOutlineColor: splitState.innerOutlineColor,
-      innerTolerance: parseInt(document.getElementById('inner-tolerance').value),
-      innerDilatePx: parseInt(document.getElementById('inner-dilate-px').value),
+      innerTolerance: parseInt(document.getElementById('split-inner-tolerance').value),
+      innerDilatePx: parseInt(document.getElementById('split-inner-dilate-px').value),
     }
   });
 }

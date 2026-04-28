@@ -460,7 +460,7 @@ function trimTransparent(data) {
   };
 }
 
-function processImage({ imageData, bgMode, tolerance, edgeRemoval, selectedColor }) {
+function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode = 0, selectedColor }) {
   const { width, height, data } = imageData;
   const pixelData = new Uint8ClampedArray(data);
   
@@ -485,6 +485,10 @@ function processImage({ imageData, bgMode, tolerance, edgeRemoval, selectedColor
     default:
       bgMask = detectAndCreateMask(pixelData, width, height, tolerance);
   }
+
+  if (dilateErode !== 0) {
+    bgMask = applyForegroundMorphology(bgMask, width, height, dilateErode);
+  }
   
   let transparentCount = 0;
   for (let i = 0; i < pixelData.length; i += 4) {
@@ -508,6 +512,43 @@ function processImage({ imageData, bgMode, tolerance, edgeRemoval, selectedColor
     },
     bgMask: Array.from(bgMask)
   };
+}
+
+function applyForegroundMorphology(bgMask, width, height, amount) {
+  let result = new Uint8Array(bgMask);
+  const steps = Math.abs(amount);
+
+  for (let pass = 0; pass < steps; pass++) {
+    const next = new Uint8Array(result);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const hasFgNeighbor =
+          (x > 0 && result[idx - 1] === 0) ||
+          (x < width - 1 && result[idx + 1] === 0) ||
+          (y > 0 && result[idx - width] === 0) ||
+          (y < height - 1 && result[idx + width] === 0);
+        const hasBgNeighbor =
+          (x === 0 || result[idx - 1] === 1) ||
+          (x === width - 1 || result[idx + 1] === 1) ||
+          (y === 0 || result[idx - width] === 1) ||
+          (y === height - 1 || result[idx + width] === 1);
+
+        if (amount > 0 && result[idx] === 1 && hasFgNeighbor) {
+          next[idx] = 0;
+        }
+
+        if (amount < 0 && result[idx] === 0 && hasBgNeighbor) {
+          next[idx] = 1;
+        }
+      }
+    }
+
+    result = next;
+  }
+
+  return result;
 }
 
 function detectAndCreateMask(data, width, height, tolerance) {
