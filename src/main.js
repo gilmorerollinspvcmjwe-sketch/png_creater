@@ -897,8 +897,10 @@ function renderIrregularPreview() {
   const selectedSet = new Set();
   for (const c of singleState.candidates) {
     if (singleState.selectedCandidates.has(c.id) && c.pixels) {
-      for (const {x, y} of c.pixels) {
-        selectedSet.add(y * singleState.fileWidth + x);
+      for (const p of c.pixels) {
+        const px = Array.isArray(p) ? p[0] : p.x;
+        const py = Array.isArray(p) ? p[1] : p.y;
+        selectedSet.add(py * singleState.fileWidth + px);
       }
     }
   }

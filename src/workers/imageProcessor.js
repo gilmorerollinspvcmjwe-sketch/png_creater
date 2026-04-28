@@ -251,7 +251,7 @@ function irregularDetect(data) {
       regions.push({
         id: regionId++,
         pixels: exactPixels,
-        pixelSet: exactPixelSet,
+        pixelSet: Array.from(exactPixelSet),
         bounds: { x: eMinX, y: eMinY, w: eMaxX - eMinX + 1, h: eMaxY - eMinY + 1 },
         area: area,
         color: REGION_COLORS[regions.length % REGION_COLORS.length],
