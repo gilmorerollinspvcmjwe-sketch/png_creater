@@ -808,11 +808,13 @@ function renderIrregularCandidates() {
     const imageData = ctx.createImageData(candidate.w, candidate.h);
 
     if (candidate.pixels && singleState.originalImageData) {
-      for (const {x, y} of candidate.pixels) {
-        const localX = x - candidate.x;
-        const localY = y - candidate.y;
+      for (const p of candidate.pixels) {
+        const px = Array.isArray(p) ? p[0] : p.x;
+        const py = Array.isArray(p) ? p[1] : p.y;
+        const localX = px - candidate.x;
+        const localY = py - candidate.y;
         if (localX >= 0 && localX < candidate.w && localY >= 0 && localY < candidate.h) {
-          const srcIdx = (y * singleState.fileWidth + x) * 4;
+          const srcIdx = (py * singleState.fileWidth + px) * 4;
           const dstIdx = (localY * candidate.w + localX) * 4;
           imageData.data[dstIdx] = singleState.originalImageData.data[srcIdx];
           imageData.data[dstIdx + 1] = singleState.originalImageData.data[srcIdx + 1];
