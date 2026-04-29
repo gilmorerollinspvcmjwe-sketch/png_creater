@@ -1,0 +1,71 @@
+id: sakura-style
+name: 樱花萌系风格包
+version: 1.0.0
+description: 温柔浪漫的樱花粉色系，适合二次元萌系爱好者
+
+triggers:
+  keywords:
+    - 樱花
+    - 粉色
+    - 萌系
+    - 甜甜的
+    - 可爱
+    - 温柔
+  mbti:
+    - INFP
+    - ENFP
+    - ISFJ
+    - ESFJ
+
+colors:
+  primary: "#F2A7B3"
+  secondary: "#FFEEF2"
+  accent: "#E8D4E8"
+  text: "#2A2A2A"
+  background: "#FFF5F8"
+
+fonts:
+  heading: "Noto Sans SC"
+  body: "Noto Sans SC"
+  accent: "ZCOOL XiaoWei"
+
+effects:
+  - type: particles
+    config:
+      shape: sakura
+      count: 30
+      speed: slow
+  - type: background
+    config:
+      gradient: "linear-gradient(135deg, #FFF5F8 0%, #F2A7B3 100%)"
+
+constraints:
+  min_components: 3
+  max_components: 8
+  background_must_be_light: true
+  avoid_dark_colors: true
+
+# Tier 3: 扩展 Skill 能力
+required_components:
+  - hero-section
+  - quote
+
+recommended_components:
+  - tag-group
+  - music-player
+  - social-links
+
+component_rules:
+  quote:
+    style: "cursive"
+    animation: "fade-in"
+  hero-section:
+    decoration: "petals"
+    animation: "float"
+  tag-group:
+    shape: "rounded"
+
+prompt_suffix: |
+  请使用温柔的粉色系配色，营造浪漫梦幻的氛围。
+  背景建议使用渐变或飘落的花瓣特效。
+  字体使用圆润的风格，避免过于硬朗的字体。

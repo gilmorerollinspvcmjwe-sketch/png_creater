@@ -1,0 +1,20 @@
+{
+  "name": "heya-studio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "二次元个人主页配置平台 — Heya Studio",
+  "scripts": {
+    "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": ".\\backend-python\\.venv\\Scripts\\python.exe -m uvicorn src.main:app --app-dir backend-python --reload --port 8000",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": ".\\backend-python\\.venv\\Scripts\\python.exe -m pytest backend-python/tests -q",
+    "lint": "npm --prefix frontend run lint",
+    "type-check": "npm --prefix frontend run type-check",
+    "test:backend": ".\\backend-python\\.venv\\Scripts\\python.exe -m pytest backend-python/tests -q",
+    "type-check:backend-ts": "npm --prefix backend run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
