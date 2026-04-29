@@ -1,0 +1,218 @@
+[
+  {
+    "id": "hero-section",
+    "name": "头部组件",
+    "type": "hero-section",
+    "category": "anime",
+    "tags": ["avatar", "name", "signature", "attributes", "头部", "个人信息"],
+    "description": "包含头像、名称、签名和属性的头部区域",
+    "default_props": {"name": "用户名", "signature": "我的签名"}
+  },
+  {
+    "id": "oshi-card",
+    "name": "推し展示卡",
+    "type": "oshi-card",
+    "category": "anime",
+    "tags": ["oshi", "推", "偶像", "角色", "推し"],
+    "description": "展示你的推（偶像/角色）的卡片组件",
+    "default_props": {"name": "推名", "fromWork": "来源作品"}
+  },
+  {
+    "id": "attribute-wall",
+    "name": "属性墙",
+    "type": "attribute-wall",
+    "category": "anime",
+    "tags": ["mbti", "星座", "血型", "属性", "性格"],
+    "description": "展示MBTI、星座、血型等属性的组件",
+    "default_props": {"attributes": {"MBTI": "INFP"}}
+  },
+  {
+    "id": "friends-list",
+    "name": "友人帐",
+    "type": "friends-list",
+    "category": "anime",
+    "tags": ["朋友", "社交", "链接", "友人帐"],
+    "description": "展示朋友链接的列表组件",
+    "default_props": {"friends": []}
+  },
+  {
+    "id": "music-player",
+    "name": "音乐播放器",
+    "type": "music-player",
+    "category": "anime",
+    "tags": ["音乐", "播放器", "BGM", "歌曲"],
+    "description": "展示正在播放的音乐的组件",
+    "default_props": {"title": "正在播放...", "artist": "艺人"}
+  },
+  {
+    "id": "tag-group",
+    "name": "标签组",
+    "type": "tag-group",
+    "category": "anime",
+    "tags": ["标签", "爱好", "关键词", "兴趣"],
+    "description": "展示标签或关键词的组件",
+    "default_props": {"tags": ["标签1", "标签2"]}
+  },
+  {
+    "id": "social-links",
+    "name": "社交链接",
+    "type": "social-links",
+    "category": "anime",
+    "tags": ["社交", "链接", "平台", "Twitter", "Bilibili"],
+    "description": "展示社交媒体链接的组件",
+    "default_props": {"links": [{"platform": "Twitter", "url": "#"}]}
+  },
+  {
+    "id": "quote",
+    "name": "特色引言",
+    "type": "quote",
+    "category": "anime",
+    "tags": ["引言", "语录", "座右铭", "名言"],
+    "description": "展示特色引言或座右铭的组件",
+    "default_props": {"text": "这是我的座右铭"}
+  },
+  {
+    "id": "media-list",
+    "name": "书影音清单",
+    "type": "media-list",
+    "category": "anime",
+    "tags": ["书籍", "电影", "音乐", "推荐", "书影音"],
+    "description": "展示书籍、电影、音乐推荐的列表",
+    "default_props": {"items": []}
+  },
+  {
+    "id": "avatar",
+    "name": "头像",
+    "type": "avatar",
+    "category": "anime",
+    "tags": ["头像", "头像框", "光晕", "个人"],
+    "description": "带呼吸光晕效果的头像组件",
+    "default_props": {"imageUrl": "", "size": 100}
+  },
+  {
+    "id": "text",
+    "name": "文本框",
+    "type": "text",
+    "category": "editor",
+    "tags": ["文本", "段落", "内容", "文字"],
+    "description": "普通文本框组件",
+    "default_props": {"content": "这是一段文本"}
+  },
+  {
+    "id": "image",
+    "name": "图片",
+    "type": "image",
+    "category": "editor",
+    "tags": ["图片", "图片展示", "照片"],
+    "description": "图片展示组件",
+    "default_props": {"imageUrl": "", "alt": "图片"}
+  },
+  {
+    "id": "divider",
+    "name": "分隔线",
+    "type": "divider",
+    "category": "editor",
+    "tags": ["分隔", "分割", "横线"],
+    "description": "分隔线组件",
+    "default_props": {}
+  },
+  {
+    "id": "spacer",
+    "name": "间距块",
+    "type": "spacer",
+    "category": "editor",
+    "tags": ["间距", "空白", "留白"],
+    "description": "空白间距组件",
+    "default_props": {"height": 20}
+  },
+  {
+    "id": "container",
+    "name": "容器",
+    "type": "container",
+    "category": "editor",
+    "tags": ["容器", "布局", "分组"],
+    "description": "容器组件，可包含其他组件",
+    "default_props": {}
+  },
+  {
+    "id": "merchandise-card",
+    "name": "谷子展示卡",
+    "type": "merchandise-card",
+    "category": "anime",
+    "tags": ["谷子", "周边", "手办", "吧唧", "立牌", "收藏"],
+    "description": "展示二次元谷子/周边收藏的卡片组件",
+    "default_props": {"name": "手办名称", "imageUrl": "", "sourceWork": "来源作品"}
+  },
+  {
+    "id": "guestbook",
+    "name": "访客留言板",
+    "type": "guestbook",
+    "category": "anime",
+    "tags": ["留言", "互动", "访客", "评论", "留言板"],
+    "description": "访客留言板组件，可以留言互动",
+    "default_props": {"messages": []}
+  },
+  {
+    "id": "watchlist",
+    "name": "追番列表",
+    "type": "watchlist",
+    "category": "anime",
+    "tags": ["追番", "番剧", "动漫", "Bangumi", "AniList", "观看"],
+    "description": "展示追番状态的列表组件，支持观看状态分组",
+    "default_props": {"items": []}
+  },
+  {
+    "id": "gallery",
+    "name": "创作画廊",
+    "type": "gallery",
+    "category": "anime",
+    "tags": ["画廊", "创作", "图片", "作品", "展示", "同人"],
+    "description": "展示创作作品的画廊组件，支持 grid/masonry/carousel 布局",
+    "default_props": {"title": "我的创作", "images": [], "layout": "grid"}
+  },
+  {
+    "id": "achievement-badges",
+    "name": "成就徽章墙",
+    "type": "achievement-badges",
+    "category": "anime",
+    "tags": ["徽章", "成就", "打卡", "漫展", "游戏", "勋章"],
+    "description": "展示漫展打卡、游戏成就、社群勋章等徽章",
+    "default_props": {"title": "我的成就", "badges": []}
+  },
+  {
+    "id": "memorial-calendar",
+    "name": "纪念日日历",
+    "type": "memorial-calendar",
+    "category": "anime",
+    "tags": ["日历", "纪念日", "生日", "出道", "倒计时"],
+    "description": "展示推生日、出道纪念日等重要日期",
+    "default_props": {"title": "重要纪念日", "events": []}
+  },
+  {
+    "id": "cp-card",
+    "name": "CP 展示卡",
+    "type": "cp-card",
+    "category": "anime",
+    "tags": ["CP", "角色", "配对", "关系", "双人"],
+    "description": "双角色并排展示，展示 CP 关系",
+    "default_props": {"character1": {"name": "角色1"}, "character2": {"name": "角色2"}, "relationship": "CP"}
+  },
+  {
+    "id": "media-card",
+    "name": "书影音高级卡片",
+    "type": "media-card",
+    "category": "anime",
+    "tags": ["书影音", "推荐", "评分", "番剧", "电影", "游戏"],
+    "description": "仿 Bangumi 风格的精美卡片，评分星星 + 标签 + 简评",
+    "default_props": {"title": "作品标题", "type": "anime", "rating": 0}
+  },
+  {
+    "id": "support-record",
+    "name": "应援记录",
+    "type": "support-record",
+    "category": "anime",
+    "tags": ["应援", "漫展", "打卡", "时间线", "活动"],
+    "description": "时间线样式展示应援/漫展记录",
+    "default_props": {"title": "我的应援", "records": []}
+  }
+]

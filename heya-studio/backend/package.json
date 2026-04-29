@@ -1,0 +1,25 @@
+{
+  "name": "heya-studio-backend",
+  "version": "0.1.0",
+  "description": "Heya Studio Backend - AI-powered personal homepage builder API",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "db:migrate": "wrangler d1 migrations apply heya-studio-db",
+    "db:migrate:local": "wrangler d1 migrations apply heya-studio-db --local",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.42.0",
+    "hono": "^4.2.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240405.0",
+    "typescript": "^5.4.0",
+    "wrangler": "^3.50.0"
+  }
+}

@@ -1,0 +1,36 @@
+name = "heya-studio-backend"
+main = "src/index-mock.ts"
+compatibility_date = "2024-04-05"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+
+# Environment variables - set via wrangler secret or .dev.vars
+# SUPABASE_URL = ""
+# SUPABASE_ANON_KEY = ""
+# SUPABASE_SERVICE_KEY = ""
+# MINIMAX_API_KEY = ""
+# DEEPSEEK_API_KEY = ""
+# ANTHROPIC_API_KEY = ""
+# OPENAI_API_KEY = ""
+
+[dev]
+port = 8787
+local_protocol = "http"
+
+# D1 Database for local development (optional, Supabase is primary)
+[[d1_databases]]
+binding = "DB"
+database_name = "heya-studio-db"
+database_id = "local"
+
+# KV for rate limiting and caching
+[[kv_namespaces]]
+binding = "KV"
+id = "local"
+
+# R2 for file storage (alternative to Supabase Storage)
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "heya-studio-assets"
