@@ -589,7 +589,8 @@ function processNormal() {
       edgeRemoval: parseInt(singleElements.edgeRemoval.value),
       dilateErode: parseInt(singleElements.dilateErode.value),
       selectedColor: singleState.selectedBgColor,
-      smoothEdge: parseInt(document.getElementById('edge-smooth').value || 0)
+      smoothEdge: parseInt(document.getElementById('edge-smooth').value || 0),
+      autoTolerance: document.getElementById('auto-tolerance')?.checked || false
     }
   });
 

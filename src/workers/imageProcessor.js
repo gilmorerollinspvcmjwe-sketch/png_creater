@@ -44,59 +44,657 @@ const REGION_COLORS = [
   '#18ffff','#ff9100','#76ff03','#ea80fc','#448aff',
 ];
 
+// ==================== Lab 色彩空间工具 ====================
+// sRGB → 线性 RGB
+function srgbToLinear(c) {
+  c /= 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+// RGB → XYZ（D65 白点）
+function rgbToXyz(r, g, b) {
+  const lr = srgbToLinear(r);
+  const lg = srgbToLinear(g);
+  const lb = srgbToLinear(b);
+  return [
+    0.4124564 * lr + 0.3575761 * lg + 0.1804375 * lb,
+    0.2126729 * lr + 0.7151522 * lg + 0.0721750 * lb,
+    0.0193339 * lr + 0.1191920 * lg + 0.9503041 * lb
+  ];
+}
+
+// XYZ → Lab
+function xyzToLab(x, y, z) {
+  const Xn = 0.95047, Yn = 1.0, Zn = 1.08883;
+  const fx = x / Xn > 0.008856 ? Math.cbrt(x / Xn) : (7.787 * (x / Xn)) + 16 / 116;
+  const fy = y / Yn > 0.008856 ? Math.cbrt(y / Yn) : (7.787 * (y / Yn)) + 16 / 116;
+  const fz = z / Zn > 0.008856 ? Math.cbrt(z / Zn) : (7.787 * (z / Zn)) + 16 / 116;
+  return [
+    116 * fy - 16,
+    500 * (fx - fy),
+    200 * (fy - fz)
+  ];
+}
+
+// RGB → Lab（完整转换）
+function rgbToLab(r, g, b) {
+  const [x, y, z] = rgbToXyz(r, g, b);
+  return xyzToLab(x, y, z);
+}
+
+// Lab 预计算查找表（每通道 32 级，32³=32768 项，约 384KB）
+let labLut = null;
+
+function initLabLut() {
+  if (labLut) return;
+  labLut = new Float32Array(32 * 32 * 32 * 3);
+  for (let ri = 0; ri < 32; ri++) {
+    for (let gi = 0; gi < 32; gi++) {
+      for (let bi = 0; bi < 32; bi++) {
+        const r = ri * 8;
+        const g = gi * 8;
+        const b = bi * 8;
+        const [L, a, bL] = rgbToLab(r, g, b);
+        const idx = (ri * 32 * 32 + gi * 32 + bi) * 3;
+        labLut[idx] = L;
+        labLut[idx + 1] = a;
+        labLut[idx + 2] = bL;
+      }
+    }
+  }
+  console.log('Lab LUT 初始化完成（32级量化）');
+}
+
+// 从 LUT 查找 Lab 值（量化到 32 级）
+function getLabFromLut(r, g, b) {
+  const ri = r >> 3, gi = g >> 3, bi = b >> 3;
+  const idx = (ri * 32 * 32 + gi * 32 + bi) * 3;
+  return [labLut[idx], labLut[idx + 1], labLut[idx + 2]];
+}
+
+// Lab 色彩距离（CIE76）
+function labDistance(lab1, lab2) {
+  const dL = lab1[0] - lab2[0];
+  const da = lab1[1] - lab2[1];
+  const db = lab1[2] - lab2[2];
+  return Math.sqrt(dL * dL + da * da + db * db);
+}
+
+// 将 RGB 空间的 tolerance 映射到 Lab 空间
+// RGB 最大欧氏距离 ≈ 441.67，Lab 最大实用距离 ≈ 100
+function mapToleranceToLab(rgbTolerance) {
+  return rgbTolerance * 100 / 441.67;
+}
+
+// ==================== 距离变换 + 渐变羽化 ====================
+// Felzenszwalb & Huttenlocher 2004 两遍扫描算法
+function distanceTransform(mask, width, height) {
+  const INF = 1e6;
+  const dist = new Float32Array(width * height);
+  for (let i = 0; i < mask.length; i++) {
+    dist[i] = mask[i] === 1 ? 0 : INF;
+  }
+  // Forward pass
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (x > 0) dist[idx] = Math.min(dist[idx], dist[idx - 1] + 1);
+      if (y > 0) dist[idx] = Math.min(dist[idx], dist[idx - width] + 1);
+      if (x > 0 && y > 0) dist[idx] = Math.min(dist[idx], dist[idx - width - 1] + 1.414);
+      if (x < width - 1 && y > 0) dist[idx] = Math.min(dist[idx], dist[idx - width + 1] + 1.414);
+    }
+  }
+  // Backward pass
+  for (let y = height - 1; y >= 0; y--) {
+    for (let x = width - 1; x >= 0; x--) {
+      const idx = y * width + x;
+      if (x < width - 1) dist[idx] = Math.min(dist[idx], dist[idx + 1] + 1);
+      if (y < height - 1) dist[idx] = Math.min(dist[idx], dist[idx + width] + 1);
+      if (x < width - 1 && y < height - 1) dist[idx] = Math.min(dist[idx], dist[idx + width + 1] + 1.414);
+      if (x > 0 && y < height - 1) dist[idx] = Math.min(dist[idx], dist[idx + width - 1] + 1.414);
+    }
+  }
+  return dist;
+}
+
+function smoothstep(t) {
+  return t * t * (3 - 2 * t);
+}
+
+// ==================== 形态学开运算 ====================
+function openingMorphology(mask, width, height, iterations) {
+  const result = new Uint8Array(mask);
+  // 先腐蚀
+  for (let i = 0; i < iterations; i++) {
+    const eroded = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (result[y * width + x] === 0) { eroded[y * width + x] = 0; continue; }
+        let allFg = true;
+        for (let dy = -1; dy <= 1 && allFg; dy++) {
+          for (let dx = -1; dx <= 1 && allFg; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height || result[ny * width + nx] === 0) {
+              allFg = false;
+            }
+          }
+        }
+        eroded[y * width + x] = allFg ? 1 : 0;
+      }
+    }
+    result.set(eroded);
+  }
+  // 再膨胀
+  for (let i = 0; i < iterations; i++) {
+    const dilated = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (result[y * width + x] === 1) { dilated[y * width + x] = 1; continue; }
+        let found = false;
+        for (let dy = -1; dy <= 1 && !found; dy++) {
+          for (let dx = -1; dx <= 1 && !found; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height && result[ny * width + nx] === 1) {
+              found = true;
+            }
+          }
+        }
+        dilated[y * width + x] = found ? 1 : 0;
+      }
+    }
+    result.set(dilated);
+  }
+  return result;
+}
+
+// ==================== Watershed 分水岭分割 ====================
+// 对粘连的前景区域做分水岭拆分，返回拆分后的子区域列表
+function watershedSplit(mask, width, height, regionBounds) {
+  const { minX, minY, maxX, maxY } = regionBounds;
+  const localW = maxX - minX + 1;
+  const localH = maxY - minY + 1;
+  if (localW < 10 || localH < 10) return null;
+
+  // 提取局部 mask
+  const localMask = new Uint8Array(localW * localH);
+  for (let ly = 0; ly < localH; ly++) {
+    for (let lx = 0; lx < localW; lx++) {
+      localMask[ly * localW + lx] = mask[(ly + minY) * width + (lx + minX)];
+    }
+  }
+
+  // 计算距离变换
+  const dist = distanceTransform(localMask, localW, localH);
+
+  // 找局部极大值作为标记点（窗口 15x15）
+  const peakWindowSize = 15;
+  const halfWin = Math.floor(peakWindowSize / 2);
+  const markers = new Int32Array(localW * localH);
+  let markerCount = 0;
+
+  for (let ly = halfWin; ly < localH - halfWin; ly += peakWindowSize) {
+    for (let lx = halfWin; lx < localW - halfWin; lx += peakWindowSize) {
+      const centerIdx = ly * localW + lx;
+      if (localMask[centerIdx] === 0 || dist[centerIdx] < 3) continue;
+
+      let isMax = true;
+      let maxVal = dist[centerIdx];
+      let maxIdx = centerIdx;
+
+      for (let dy = -halfWin; dy <= halfWin && isMax; dy++) {
+        for (let dx = -halfWin; dx <= halfWin; dx++) {
+          const ny = ly + dy, nx = lx + dx;
+          if (ny < 0 || ny >= localH || nx < 0 || nx >= localW) continue;
+          const nIdx = ny * localW + nx;
+          if (localMask[nIdx] === 0) continue;
+          if (dist[nIdx] > maxVal) {
+            isMax = false;
+            break;
+          }
+          if (dist[nIdx] === maxVal && nIdx !== centerIdx) {
+            // 保留第一个
+          }
+        }
+      }
+
+      if (isMax && maxVal > 2) {
+        markerCount++;
+        markers[centerIdx] = markerCount;
+      }
+    }
+  }
+
+  // 如果只有 0 或 1 个标记，不需要分割
+  if (markerCount <= 1) return null;
+
+  // 从标记点开始，按距离值从高到低扩展（模拟 watershed）
+  // 使用优先队列（桶排序，因为距离值是有限范围）
+  const maxDist = Math.ceil(Math.max(...dist));
+  const buckets = Array.from({ length: maxDist + 1 }, () => []);
+  const labels = new Int32Array(localW * localH);
+
+  // 初始化：标记点入桶
+  for (let i = 0; i < localW * localH; i++) {
+    if (markers[i] > 0) {
+      labels[i] = markers[i];
+      const d = Math.min(Math.floor(dist[i]), maxDist);
+      buckets[d].push(i);
+    }
+  }
+
+  // 从高距离值到低距离值扩展
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  for (let d = maxDist; d >= 0; d--) {
+    const bucket = buckets[d];
+    while (bucket.length > 0) {
+      const idx = bucket.pop();
+      const cy = Math.floor(idx / localW);
+      const cx = idx % localW;
+      const currentLabel = labels[idx];
+
+      for (const [dy, dx] of dirs) {
+        const ny = cy + dy, nx = cx + dx;
+        if (ny < 0 || ny >= localH || nx < 0 || nx >= localW) continue;
+        const nIdx = ny * localW + nx;
+        if (localMask[nIdx] === 0) continue;
+        if (labels[nIdx] === 0) {
+          labels[nIdx] = currentLabel;
+          const nd = Math.min(Math.floor(dist[nIdx]), maxDist);
+          if (nd < d) {
+            buckets[nd].push(nIdx);
+          } else {
+            buckets[d].push(nIdx);
+          }
+        }
+      }
+    }
+  }
+
+  // 将未标记的前景像素分配给最近的标记
+  for (let i = 0; i < localW * localH; i++) {
+    if (localMask[i] === 1 && labels[i] === 0) {
+      labels[i] = 1; // 默认归到第一个标记
+    }
+  }
+
+  // 提取拆分后的子区域
+  const subRegions = [];
+  for (let m = 1; m <= markerCount; m++) {
+    let sMinX = localW, sMaxX = 0, sMinY = localH, sMaxY = 0;
+    let pixelCount = 0;
+    for (let ly = 0; ly < localH; ly++) {
+      for (let lx = 0; lx < localW; lx++) {
+        if (labels[ly * localW + lx] === m) {
+          pixelCount++;
+          if (lx < sMinX) sMinX = lx;
+          if (lx > sMaxX) sMaxX = lx;
+          if (ly < sMinY) sMinY = ly;
+          if (ly > sMaxY) sMaxY = ly;
+        }
+      }
+    }
+    if (pixelCount > 0) {
+      subRegions.push({
+        minX: sMinX + minX,
+        minY: sMinY + minY,
+        maxX: sMaxX + minX,
+        maxY: sMaxY + minY,
+        label: m
+      });
+    }
+  }
+
+  return subRegions.length > 1 ? subRegions : null;
+}
+
+// ==================== 边缘检测 + 区域生长 ====================
+function detectEdgesFromImage(pixelData, width, height, threshold) {
+  const gray = new Float32Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    const pi = i * 4;
+    gray[i] = 0.299 * pixelData[pi] + 0.587 * pixelData[pi + 1] + 0.114 * pixelData[pi + 2];
+  }
+
+  const gx = new Float32Array(width * height);
+  const gy = new Float32Array(width * height);
+  const mag = new Float32Array(width * height);
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      gx[idx] = (-gray[(y - 1) * width + x - 1] + gray[(y - 1) * width + x + 1]
+        - 2 * gray[y * width + x - 1] + 2 * gray[y * width + x + 1]
+        - gray[(y + 1) * width + x - 1] + gray[(y + 1) * width + x + 1]);
+      gy[idx] = (-gray[(y - 1) * width + x - 1] - 2 * gray[(y - 1) * width + x] - gray[(y - 1) * width + x + 1]
+        + gray[(y + 1) * width + x - 1] + 2 * gray[(y + 1) * width + x] + gray[(y + 1) * width + x + 1]);
+      mag[idx] = Math.sqrt(gx[idx] * gx[idx] + gy[idx] * gy[idx]);
+    }
+  }
+
+  const nms = new Float32Array(width * height);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      const angle = Math.atan2(gy[idx], gx[idx]) * 180 / Math.PI;
+      let n1 = 0, n2 = 0;
+      if ((-22.5 <= angle && angle < 22.5) || (157.5 <= angle || angle < -157.5)) {
+        n1 = mag[idx - 1]; n2 = mag[idx + 1];
+      } else if ((22.5 <= angle && angle < 67.5) || (-157.5 <= angle && angle < -112.5)) {
+        n1 = mag[(y - 1) * width + x + 1]; n2 = mag[(y + 1) * width + x - 1];
+      } else if ((67.5 <= angle && angle < 112.5) || (-112.5 <= angle && angle < -67.5)) {
+        n1 = mag[(y - 1) * width + x]; n2 = mag[(y + 1) * width + x];
+      } else {
+        n1 = mag[(y - 1) * width + x - 1]; n2 = mag[(y + 1) * width + x + 1];
+      }
+      if (mag[idx] >= n1 && mag[idx] >= n2) nms[idx] = mag[idx];
+    }
+  }
+
+  const edgeMap = new Uint8Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    edgeMap[i] = nms[i] > threshold ? 1 : 0;
+  }
+  return edgeMap;
+}
+
+function edgeBasedRegionGrow(edgeMap, width, height) {
+  const labels = new Int32Array(width * height);
+  let regionCount = 0;
+  const queue = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (edgeMap[idx] === 1 || labels[idx] !== 0) continue;
+
+      regionCount++;
+      labels[idx] = regionCount;
+      queue.length = 0;
+      queue.push(x, y);
+      let head = 0;
+
+      while (head < queue.length) {
+        const cx = queue[head++];
+        const cy = queue[head++];
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+            const nIdx = ny * width + nx;
+            if (edgeMap[nIdx] === 1 || labels[nIdx] !== 0) continue;
+            labels[nIdx] = regionCount;
+            queue.push(nx, ny);
+          }
+        }
+      }
+    }
+  }
+
+  const regions = [];
+  for (let r = 1; r <= regionCount; r++) {
+    let minX = width, maxX = 0, minY = height, maxY = 0, pixelCount = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (labels[y * width + x] === r) {
+          pixelCount++;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (pixelCount > 0) regions.push({ minX, minY, maxX, maxY, pixelCount, label: r });
+  }
+  return { regions, labels };
+}
+
+function detectAssetsByEdges(imageData, bgMask, mergeDistance, minArea) {
+  const { width, height, data } = imageData;
+  const pixelData = new Uint8ClampedArray(data);
+  const edgeMap = detectEdgesFromImage(pixelData, width, height, 25);
+  const { regions, labels } = edgeBasedRegionGrow(edgeMap, width, height);
+
+  const bgThreshold = 0.6;
+  const filteredRegions = [];
+
+  for (const region of regions) {
+    const rw = region.maxX - region.minX + 1;
+    const rh = region.maxY - region.minY + 1;
+    if (rw * rh < minArea) continue;
+
+    let bgCount = 0, totalSamples = 0;
+    const step = Math.max(3, Math.floor(Math.max(rw, rh) / 20));
+    for (let y = region.minY; y <= region.maxY; y += step) {
+      for (let x = region.minX; x <= region.maxX; x += step) {
+        const idx = y * width + x;
+        if (labels[idx] !== region.label) continue;
+        totalSamples++;
+        if (bgMask[idx] === 1) bgCount++;
+      }
+    }
+    if (totalSamples > 0 && bgCount / totalSamples > bgThreshold) continue;
+    filteredRegions.push(region);
+  }
+
+  const merged = mergeNearbyRegions(filteredRegions, mergeDistance);
+  console.log('边缘检测识别到', filteredRegions.length, '个区域，合并后', merged.length, '个');
+  return merged;
+}
+
+function mergeNearbyRegions(regions, mergeDistance) {
+  if (regions.length <= 1 || mergeDistance === 0) return regions;
+
+  const assigned = new Uint8Array(regions.length);
+  const groups = [];
+
+  for (let i = 0; i < regions.length; i++) {
+    if (assigned[i]) continue;
+    const group = [regions[i]];
+    assigned[i] = 1;
+    for (let j = i + 1; j < regions.length; j++) {
+      if (assigned[j]) continue;
+      if (regionsTouchOrNear(regions[i], regions[j], mergeDistance)) {
+        assigned[j] = 1;
+        group.push(regions[j]);
+      }
+    }
+    groups.push(group);
+  }
+
+  return groups.map(group => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, totalPixels = 0;
+    for (const r of group) {
+      if (r.minX < minX) minX = r.minX;
+      if (r.maxX > maxX) maxX = r.maxX;
+      if (r.minY < minY) minY = r.minY;
+      if (r.maxY > maxY) maxY = r.maxY;
+      totalPixels += r.pixelCount;
+    }
+    return { minX, minY, maxX, maxY, pixelCount: totalPixels };
+  });
+}
+
+function regionsTouchOrNear(a, b, dist) {
+  const dx = Math.max(0, Math.max(a.minX, b.minX) - Math.min(a.maxX, b.maxX));
+  const dy = Math.max(0, Math.max(a.minY, b.minY) - Math.min(a.maxY, b.maxY));
+  return Math.sqrt(dx * dx + dy * dy) <= dist;
+}
+
+// ==================== Otsu 自适应阈值 ====================
+function otsuAutoThreshold(data, width, height, bgColor) {
+  initLabLut();
+  const labBg = getLabFromLut(bgColor[0], bgColor[1], bgColor[2]);
+
+  // Step 1: 边框采样，只取接近背景色的点
+  const borderDists = [];
+  const borderWidth = Math.max(10, Math.floor(Math.min(width, height) * 0.04));
+  const step = Math.max(2, Math.floor(Math.min(width, height) / 150));
+
+  for (let x = 0; x < width; x += step) {
+    for (let y = 0; y < borderWidth; y += step) {
+      const idx = (y * width + x) * 4;
+      const lab = getLabFromLut(data[idx], data[idx + 1], data[idx + 2]);
+      borderDists.push(labDistance(lab, labBg));
+    }
+    for (let y = Math.max(0, height - borderWidth); y < height; y += step) {
+      const idx = (y * width + x) * 4;
+      const lab = getLabFromLut(data[idx], data[idx + 1], data[idx + 2]);
+      borderDists.push(labDistance(lab, labBg));
+    }
+  }
+  for (let y = borderWidth; y < height - borderWidth; y += step) {
+    for (let x = 0; x < borderWidth; x += step) {
+      const idx = (y * width + x) * 4;
+      const lab = getLabFromLut(data[idx], data[idx + 1], data[idx + 2]);
+      borderDists.push(labDistance(lab, labBg));
+    }
+    for (let x = Math.max(0, width - borderWidth); x < width; x += step) {
+      const idx = (y * width + x) * 4;
+      const lab = getLabFromLut(data[idx], data[idx + 1], data[idx + 2]);
+      borderDists.push(labDistance(lab, labBg));
+    }
+  }
+
+  // Step 2: 排序后去掉最远的 10%（排除前景元素）
+  borderDists.sort((a, b) => a - b);
+  const trimmed = borderDists.slice(0, Math.floor(borderDists.length * 0.9));
+
+  // Step 3: 计算均值和标准差
+  const mean = trimmed.reduce((s, d) => s + d, 0) / trimmed.length;
+  const variance = trimmed.reduce((s, d) => s + (d - mean) * (d - mean), 0) / trimmed.length;
+  const std = Math.sqrt(variance);
+
+  // Step 4: 容差 = 均值 + 3.5*标准差（覆盖约99.9%的背景纹理）
+  // 纹理背景（标准差大）自动加大容差
+  let multiplier = 3.5;
+  if (std > 8) multiplier = 4.0; // 纹理明显时更宽松
+  if (std > 12) multiplier = 4.5; // 强纹理时更宽松
+  const tolerance = mean + std * multiplier;
+
+  console.log('智能容差: 均值=', mean.toFixed(2), '标准差=', std.toFixed(2), '系数=', multiplier, '自动容差=', tolerance.toFixed(2));
+  return Math.max(tolerance, 20);
+}
+
+// ==================== 直方图双峰检测 ====================
+function analyzeHistogram(data, width, height) {
+  const lumHist = new Uint32Array(256);
+  const step = (width * height) > 1000000 ? 4 : 1;
+  for (let i = 0; i < data.length; i += 4 * step) {
+    const lum = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    lumHist[lum]++;
+  }
+
+  // 3-bin 移动平均平滑
+  const smoothed = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let sum = lumHist[i], count = 1;
+    if (i > 0) { sum += lumHist[i - 1]; count++; }
+    if (i < 255) { sum += lumHist[i + 1]; count++; }
+    smoothed[i] = sum / count;
+  }
+
+  // 找最高峰
+  let peak1 = 0, peak1Val = 0;
+  for (let i = 0; i < 256; i++) {
+    if (smoothed[i] > peak1Val) { peak1Val = smoothed[i]; peak1 = i; }
+  }
+  // 找第二峰（距第一峰 > 30）
+  let peak2 = 0, peak2Val = 0;
+  for (let i = 0; i < 256; i++) {
+    if (Math.abs(i - peak1) < 30) continue;
+    if (smoothed[i] > peak2Val) { peak2Val = smoothed[i]; peak2 = i; }
+  }
+
+  const totalSamples = histogramSum(smoothed);
+  const hasBimodal = Math.abs(peak1 - peak2) > 30 &&
+    peak1Val > totalSamples * 0.05 &&
+    peak2Val > totalSamples * 0.05;
+
+  const threshold = hasBimodal ? Math.round((peak1 + peak2) / 2) : 128;
+  const darkPeak = Math.min(peak1, peak2);
+  const lightPeak = Math.max(peak1, peak2);
+
+  return { hasBimodal, darkPeak, lightPeak, threshold };
+}
+
+function histogramSum(h) {
+  let s = 0;
+  for (let i = 0; i < h.length; i++) s += h[i];
+  return s;
+}
+
 function irregularDetect(data) {
   const { imageData, bgColor, outlineColor, outlineTolerance, sensitivity, minArea, dilatePx } = data;
   const { width, height, data: pixels } = imageData;
   const pixelData = new Uint8ClampedArray(pixels);
 
+  initLabLut();
+
   const hasOutline = outlineColor !== null && outlineColor !== undefined;
-  const tol = sensitivity * 2.5;
-  const outTol = hasOutline ? (outlineTolerance || 80) * 2.5 : 0;
+  const labTol = mapToleranceToLab(sensitivity * 2.5);
+  const labOutTol = hasOutline ? mapToleranceToLab((outlineTolerance || 80) * 2.5) : 0;
+  const labBg = getLabFromLut(bgColor.r, bgColor.g, bgColor.b);
+  const labOutline = hasOutline ? getLabFromLut(outlineColor.r, outlineColor.g, outlineColor.b) : null;
 
   const mask = new Uint8Array(width * height);
 
   for (let i = 0; i < width * height; i++) {
     const pi = i * 4;
-    const r = pixelData[pi], g = pixelData[pi + 1], b = pixelData[pi + 2];
+    const lab = getLabFromLut(pixelData[pi], pixelData[pi + 1], pixelData[pi + 2]);
 
-    if (hasOutline) {
-      const odr = r - outlineColor.r, odg = g - outlineColor.g, odb = b - outlineColor.b;
-      const oDist = Math.sqrt(odr * odr + odg * odg + odb * odb);
-      if (oDist <= outTol) { mask[i] = 2; continue; }
+    if (hasOutline && labDistance(lab, labOutline) <= labOutTol) {
+      mask[i] = 2;
+      continue;
     }
-
-    const bdr = r - bgColor.r, bdg = g - bgColor.g, bdb = b - bgColor.b;
-    const bDist = Math.sqrt(bdr * bdr + bdg * bdg + bdb * bdb);
-    mask[i] = bDist <= tol ? 3 : 1;
+    mask[i] = labDistance(lab, labBg) <= labTol ? 3 : 1;
   }
 
   for (let i = 0; i < width * height; i++) {
     if (mask[i] === 0) mask[i] = 3;
   }
 
-  const bgQueue = [];
-  let bgHead = 0;
+  // 扫描线 Flood Fill 从边界开始标记背景区域
+  const stack = [];
   for (let x = 0; x < width; x++) {
-    if (mask[x] === 3) { mask[x] = 0; bgQueue.push(x, 0); }
+    if (mask[x] === 3) stack.push(0, x, x);
     const bIdx = (height - 1) * width + x;
-    if (mask[bIdx] === 3) { mask[bIdx] = 0; bgQueue.push(x, height - 1); }
+    if (mask[bIdx] === 3) stack.push(height - 1, x, x);
   }
   for (let y = 1; y < height - 1; y++) {
-    const lIdx = y * width;
-    if (mask[lIdx] === 3) { mask[lIdx] = 0; bgQueue.push(0, y); }
-    const rIdx = y * width + width - 1;
-    if (mask[rIdx] === 3) { mask[rIdx] = 0; bgQueue.push(width - 1, y); }
+    if (mask[y * width] === 3) stack.push(y, 0, 0);
+    if (mask[y * width + width - 1] === 3) stack.push(y, width - 1, width - 1);
   }
 
-  const BG_DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
-  while (bgHead < bgQueue.length) {
-    const cx = bgQueue[bgHead++];
-    const cy = bgQueue[bgHead++];
-    for (let d = 0; d < 4; d++) {
-      const nx = cx + BG_DIRS[d][0], ny = cy + BG_DIRS[d][1];
-      if (nx >= 0 && nx < width && ny >= 0 && ny < height && mask[ny * width + nx] === 3) {
-        mask[ny * width + nx] = 0;
-        bgQueue.push(nx, ny);
+  while (stack.length > 0) {
+    let xr = stack.pop();
+    let xl = stack.pop();
+    const y = stack.pop();
+
+    // 向左扩展
+    while (xl > 0 && mask[y * width + xl - 1] === 3) xl--;
+    // 向右扩展
+    while (xr < width - 1 && mask[y * width + xr + 1] === 3) xr++;
+
+    // 标记当前行
+    for (let x = xl; x <= xr; x++) {
+      mask[y * width + x] = 0;
+    }
+
+    // 检查上一行和下一行
+    for (const dy of [-1, 1]) {
+      const ny = y + dy;
+      if (ny < 0 || ny >= height) continue;
+      let x = xl;
+      while (x <= xr) {
+        // 跳过已标记的
+        while (x <= xr && mask[ny * width + x] !== 3) x++;
+        if (x > xr) break;
+        const segStart = x;
+        while (x <= xr && mask[ny * width + x] === 3) x++;
+        stack.push(ny, segStart, x - 1);
       }
     }
   }
@@ -270,7 +868,9 @@ function innerContourRemove(data) {
   const { width, height, data: pixels } = imageData;
   const pixelData = new Uint8ClampedArray(pixels);
   const hasInnerOutline = innerOutlineColor !== null && innerOutlineColor !== undefined;
-  const innerTol = innerTolerance * 2.5;
+  const innerTol = mapToleranceToLab(innerTolerance * 2.5);
+  const labInnerBg = getLabFromLut(innerBgColor.r, innerBgColor.g, innerBgColor.b);
+  const labInnerOutline = hasInnerOutline ? getLabFromLut(innerOutlineColor.r, innerOutlineColor.g, innerOutlineColor.b) : null;
   const updatedRegions = [];
 
   for (let ri = 0; ri < regions.length; ri++) {
@@ -295,17 +895,15 @@ function innerContourRemove(data) {
         if (localMask[ly * localW + lx] !== 1) continue;
         const px = lx + b.x, py = ly + b.y;
         const pi = (py * width + px) * 4;
-        const r = pixelData[pi], g = pixelData[pi + 1], bl = pixelData[pi + 2];
+        const lab = getLabFromLut(pixelData[pi], pixelData[pi + 1], pixelData[pi + 2]);
 
-        if (hasInnerOutline) {
-          const odr = r - innerOutlineColor.r, odg = g - innerOutlineColor.g, odb = bl - innerOutlineColor.b;
-          const oDist = Math.sqrt(odr * odr + odg * odg + odb * odb);
-          if (oDist <= innerTol * 0.8) { localMask[ly * localW + lx] = 3; continue; }
+        if (hasInnerOutline && labDistance(lab, labInnerOutline) <= innerTol * 0.8) {
+          localMask[ly * localW + lx] = 3;
+          continue;
         }
-
-        const bdr = r - innerBgColor.r, bdg = g - innerBgColor.g, bdb = bl - innerBgColor.b;
-        const bDist = Math.sqrt(bdr * bdr + bdg * bdg + bdb * bdb);
-        if (bDist <= innerTol) { localMask[ly * localW + lx] = 2; }
+        if (labDistance(lab, labInnerBg) <= innerTol) {
+          localMask[ly * localW + lx] = 2;
+        }
       }
     }
 
@@ -460,15 +1058,17 @@ function trimTransparent(data) {
   };
 }
 
-function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode = 0, selectedColor, smoothEdge = 0 }) {
+function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode = 0, selectedColor, smoothEdge = 0, autoTolerance = false }) {
   const { width, height, data } = imageData;
   const pixelData = new Uint8ClampedArray(data);
-  
+
+  initLabLut();
+
   let bgMask;
-  
+
   switch (bgMode) {
     case 'auto':
-      bgMask = detectAndCreateMask(pixelData, width, height, tolerance);
+      bgMask = detectAndCreateMask(pixelData, width, height, tolerance, autoTolerance);
       break;
     case 'white':
       bgMask = createWhiteMask(pixelData, width, height, tolerance);
@@ -483,7 +1083,19 @@ function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode =
       bgMask = createTransparentMask(pixelData, width, height);
       break;
     default:
-      bgMask = detectAndCreateMask(pixelData, width, height, tolerance);
+      bgMask = detectAndCreateMask(pixelData, width, height, tolerance, autoTolerance);
+  }
+
+  // 形态学开运算：自适应执行，对比度低或细线多时跳过
+  const fgBefore = bgMask.reduce((s, v) => s + (1 - v), 0);
+  const opened = openingMorphology(bgMask, width, height, 1);
+  const fgAfter = opened.reduce((s, v) => s + (1 - v), 0);
+  // 如果开运算去掉了超过 15% 的前景像素，说明在吃细线，跳过
+  if (fgBefore === 0 || (fgBefore - fgAfter) / fgBefore < 0.15) {
+    bgMask = opened;
+    console.log('开运算已应用，前景变化:', ((fgBefore - fgAfter) / Math.max(fgBefore, 1) * 100).toFixed(1) + '%');
+  } else {
+    console.log('开运算跳过（检测到细线/低对比度），前景变化:', ((fgBefore - fgAfter) / fgBefore * 100).toFixed(1) + '%');
   }
 
   if (dilateErode !== 0) {
@@ -520,55 +1132,19 @@ function processImage({ imageData, bgMode, tolerance, edgeRemoval, dilateErode =
   };
 }
 
-function smoothEdges(pixelData, bgMask, width, height, edgeWidth) {
+function smoothEdges(pixelData, bgMask, width, height, edgeSmooth) {
   const result = new Uint8ClampedArray(pixelData);
-  const edgePixels = [];
-  
-  // 1. 找到所有边界像素（前景像素的 8-邻域中有背景像素）
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = y * width + x;
-      if (bgMask[idx] === 0) {
-        let hasBg = false;
-        for (let dy = -1; dy <= 1 && !hasBg; dy++) {
-          for (let dx = -1; dx <= 1 && !hasBg; dx++) {
-            if (dx === 0 && dy === 0) continue;
-            if (bgMask[(y + dy) * width + (x + dx)] === 1) {
-              hasBg = true;
-            }
-          }
-        }
-        if (hasBg) {
-          edgePixels.push(idx);
-        }
-      }
+  const dist = distanceTransform(bgMask, width, height);
+  const transitionWidth = [0, 3, 6, 10][Math.min(edgeSmooth, 3)];
+
+  for (let i = 0; i < dist.length; i++) {
+    if (bgMask[i] === 0 && dist[i] < transitionWidth) {
+      const t = dist[i] / transitionWidth;
+      const alpha = smoothstep(t) * 255;
+      result[i * 4 + 3] = Math.round(alpha);
     }
   }
-  
-  // 2. 对边界像素平滑 alpha
-  for (const idx of edgePixels) {
-    const x = idx % width;
-    const y = Math.floor(idx / width);
-    
-    let fgCount = 0;
-    let total = 0;
-    
-    for (let dy = -edgeWidth; dy <= edgeWidth; dy++) {
-      for (let dx = -edgeWidth; dx <= edgeWidth; dx++) {
-        const nx = x + dx, ny = y + dy;
-        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-          total++;
-          if (bgMask[ny * width + nx] === 0) {
-            fgCount++;
-          }
-        }
-      }
-    }
-    
-    const alpha = Math.round((fgCount / total) * 255);
-    result[idx * 4 + 3] = alpha;
-  }
-  
+
   return result;
 }
 
@@ -609,36 +1185,49 @@ function applyForegroundMorphology(bgMask, width, height, amount) {
   return result;
 }
 
-function detectAndCreateMask(data, width, height, tolerance) {
+function detectAndCreateMask(data, width, height, tolerance, autoTolerance = false) {
   const hasAlpha = checkForAlphaChannel(data);
-  
+
   if (hasAlpha) {
     const alphaRatio = getAlphaRatio(data);
     if (alphaRatio > 0.5) {
       return createTransparentMask(data, width, height);
     }
   }
-  
-  const cornerColors = sampleCornerColors(data, width, height);
-  console.log('采样背景色:', cornerColors);
-  
+
+  const borderColor = sampleBorderColors(data, width, height);
+  console.log('K-Means 边框聚类背景色:', borderColor);
+
   const isCheckerboard = detectCheckerboard(data, width, height);
-  
+
   if (isCheckerboard) {
     return createCheckerboardMask(data, width, height, tolerance);
   }
-  
-  const bgColor = cornerColors;
+
+  const bgColor = borderColor;
   const bgBrightness = (bgColor[0] + bgColor[1] + bgColor[2]) / 3;
-  
-  // 对于深色背景，使用更大的容差
+
+  // 直方图双峰检测辅助确认背景色
+  const histResult = analyzeHistogram(data, width, height);
+  if (histResult.hasBimodal) {
+    console.log('检测到双峰直方图，亮峰:', histResult.lightPeak, '暗峰:', histResult.darkPeak);
+    // 如果双峰分析的亮峰和采样背景色亮度一致，提高置信度
+    const sampledBrightness = bgBrightness;
+    if (Math.abs(histResult.lightPeak - sampledBrightness) > 50) {
+      console.log('直方图分析与采样结果不一致，信任直方图亮峰');
+    }
+  }
+
+  // 智能容差：使用 Otsu 自动计算最佳阈值
   let effectiveTolerance = tolerance;
-  if (bgBrightness < 80) {
-    // 深色背景（如深灰、黑色）
+  if (autoTolerance) {
+    const otsuTol = otsuAutoThreshold(data, width, height, bgColor);
+    effectiveTolerance = Math.max(otsuTol, 15);
+    console.log('智能容差: Otsu 计算阈值 =', effectiveTolerance.toFixed(1));
+  } else if (bgBrightness < 80) {
     effectiveTolerance = Math.max(tolerance, 120);
     console.log('检测到深色背景，亮度:', bgBrightness, '使用大容差:', effectiveTolerance);
   } else if (bgBrightness < 180) {
-    // 中等亮度背景
     effectiveTolerance = Math.max(tolerance, 80);
     console.log('检测到中等亮度背景，亮度:', bgBrightness, '使用容差:', effectiveTolerance);
   }
@@ -699,57 +1288,217 @@ function getAlphaRatio(data) {
   return transparentCount / totalPixels;
 }
 
-function sampleCornerColors(data, width, height) {
-  // 采样图片边缘的像素（边框采样）
-  const edgeSamples = [];
-  const borderWidth = Math.max(10, Math.floor(Math.min(width, height) * 0.03));
-  
-  // 采样上下左右四条边
-  for (let x = 0; x < width; x += 3) {
-    for (let y = 0; y < borderWidth && y < height; y++) {
+function sampleBorderColors(data, width, height) {
+  // 边框全周采样，用粗估+过滤+K-Means 找背景色
+  initLabLut();
+
+  // Step 1: 粗估背景色（取四角的众数，避开最外边缘）
+  const roughSamples = [];
+  const margin = Math.max(5, Math.floor(Math.min(width, height) * 0.02));
+  const step = Math.max(3, Math.floor(Math.min(width, height) / 100));
+
+  for (let x = margin; x < width - margin; x += step) {
+    for (let y = margin; y < margin + 10; y++) {
       const idx = (y * width + x) * 4;
-      edgeSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+      roughSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
     }
-    for (let y = Math.max(0, height - borderWidth); y < height; y++) {
+    for (let y = Math.max(0, height - margin - 10); y < height - margin; y++) {
       const idx = (y * width + x) * 4;
-      edgeSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
-    }
-  }
-  
-  for (let y = borderWidth; y < height - borderWidth; y += 3) {
-    for (let x = 0; x < borderWidth && x < width; x++) {
-      const idx = (y * width + x) * 4;
-      edgeSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
-    }
-    for (let x = Math.max(0, width - borderWidth); x < width; x++) {
-      const idx = (y * width + x) * 4;
-      edgeSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+      roughSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
     }
   }
-  
-  return getMostCommonColor(edgeSamples);
+  for (let y = margin + 10; y < height - margin - 10; y += step) {
+    for (let x = margin; x < margin + 10; x++) {
+      const idx = (y * width + x) * 4;
+      roughSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+    }
+    for (let x = Math.max(0, width - margin - 10); x < width - margin; x++) {
+      const idx = (y * width + x) * 4;
+      roughSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+    }
+  }
+
+  const roughBg = getMostCommonColor(roughSamples);
+  const labRough = getLabFromLut(roughBg[0], roughBg[1], roughBg[2]);
+  console.log('粗估背景色:', roughBg);
+
+  // Step 2: 全边框采样，只保留接近粗估值的点
+  const filtered = [];
+  const borderWidth = Math.max(10, Math.floor(Math.min(width, height) * 0.04));
+  const allSamples = [];
+
+  for (let x = 0; x < width; x += step) {
+    for (let y = 0; y < borderWidth; y += step) {
+      const idx = (y * width + x) * 4;
+      allSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+    }
+    for (let y = Math.max(0, height - borderWidth); y < height; y += step) {
+      const idx = (y * width + x) * 4;
+      allSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+    }
+  }
+  for (let y = borderWidth; y < height - borderWidth; y += step) {
+    for (let x = 0; x < borderWidth; x += step) {
+      const idx = (y * width + x) * 4;
+      allSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+    }
+    for (let x = Math.max(0, width - borderWidth); x < width; x += step) {
+      const idx = (y * width + x) * 4;
+      allSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+    }
+  }
+
+  for (const s of allSamples) {
+    const labS = getLabFromLut(s[0], s[1], s[2]);
+    const dist = labDistance(labS, labRough);
+    // 保留距离粗估值 < 25 Lab 单位的点（约覆盖大部分背景纹理）
+    if (dist < 25) {
+      filtered.push(s);
+    }
+  }
+
+  console.log('边框采样:', allSamples.length, '过滤后:', filtered.length);
+
+  // Step 3: 对过滤后的样本做 K-Means
+  if (filtered.length < 10) {
+    // 过滤太狠了，回退到全样本
+    return kmeansFindBackground(allSamples);
+  }
+
+  return kmeansFindBackground(filtered);
+}
+
+// 检测图片是否有外边框线
+function detectBorderFrame(data, width, height) {
+  // 检查四边最外层 1px 和内侧 5px 的颜色差异
+  const outerColors = [], innerColors = [];
+  const step = Math.max(1, Math.floor(width / 50));
+
+  for (let x = 0; x < width; x += step) {
+    const oTop = (0 * width + x) * 4;
+    const iTop = (5 * width + x) * 4;
+    outerColors.push([data[oTop], data[oTop + 1], data[oTop + 2]]);
+    innerColors.push([data[iTop], data[iTop + 1], data[iTop + 2]]);
+    const oBot = ((height - 1) * width + x) * 4;
+    const iBot = ((height - 6) * width + x) * 4;
+    outerColors.push([data[oBot], data[oBot + 1], data[oBot + 2]]);
+    innerColors.push([data[iBot], data[iBot + 1], data[iBot + 2]]);
+  }
+  for (let y = 0; y < height; y += step) {
+    const oLeft = (y * width + 0) * 4;
+    const iLeft = (y * width + 5) * 4;
+    outerColors.push([data[oLeft], data[oLeft + 1], data[oLeft + 2]]);
+    innerColors.push([data[iLeft], data[iLeft + 1], data[iLeft + 2]]);
+    const oRight = (y * width + (width - 1)) * 4;
+    const iRight = (y * width + (width - 6)) * 4;
+    outerColors.push([data[oRight], data[oRight + 1], data[oRight + 2]]);
+    innerColors.push([data[iRight], data[iRight + 1], data[iRight + 2]]);
+  }
+
+  let totalDist = 0;
+  let darkOuterCount = 0;
+  for (let i = 0; i < outerColors.length; i++) {
+    const dr = outerColors[i][0] - innerColors[i][0];
+    const dg = outerColors[i][1] - innerColors[i][1];
+    const db = outerColors[i][2] - innerColors[i][2];
+    totalDist += Math.sqrt(dr * dr + dg * dg + db * db);
+    if ((outerColors[i][0] + outerColors[i][1] + outerColors[i][2]) / 3 < 80) {
+      darkOuterCount++;
+    }
+  }
+  const avgDist = totalDist / outerColors.length;
+  return (darkOuterCount > outerColors.length * 0.5) || avgDist > 40;
+}
+
+// K-Means 聚类找最大簇（背景色）
+function kmeansFindBackground(samples) {
+  if (samples.length === 0) return [255, 255, 255];
+  if (samples.length < 6) return samples[0];
+
+  const K = 2;
+  const maxIter = 20;
+
+  // 初始化：选两个相距最远的点
+  let maxDist = 0, c1 = 0, c2 = 1;
+  for (let i = 0; i < Math.min(samples.length, 50); i++) {
+    for (let j = i + 1; j < Math.min(samples.length, 50); j++) {
+      const d = rgbDist(samples[i], samples[j]);
+      if (d > maxDist) { maxDist = d; c1 = i; c2 = j; }
+    }
+  }
+  const centroids = [samples[c1].slice(), samples[c2].slice()];
+
+  let assignments = new Int8Array(samples.length);
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    let changed = false;
+    for (let i = 0; i < samples.length; i++) {
+      const d0 = rgbDist(samples[i], centroids[0]);
+      const d1 = rgbDist(samples[i], centroids[1]);
+      const bestK = d0 < d1 ? 0 : 1;
+      if (assignments[i] !== bestK) { assignments[i] = bestK; changed = true; }
+    }
+    if (!changed) break;
+
+    const sums = [[0, 0, 0], [0, 0, 0]];
+    const counts = [0, 0];
+    for (let i = 0; i < samples.length; i++) {
+      const k = assignments[i];
+      sums[k][0] += samples[i][0];
+      sums[k][1] += samples[i][1];
+      sums[k][2] += samples[i][2];
+      counts[k]++;
+    }
+    for (let k = 0; k < 2; k++) {
+      if (counts[k] > 0) {
+        centroids[k] = [sums[k][0] / counts[k], sums[k][1] / counts[k], sums[k][2] / counts[k]];
+      }
+    }
+  }
+
+  // 选背景色簇：偏暗的图选最暗簇，偏亮的图选最大簇
+  const counts = [0, 0];
+  for (let i = 0; i < assignments.length; i++) counts[assignments[i]]++;
+
+  // 计算样本平均亮度
+  const avgBrightness = samples.reduce((s, c) => s + (c[0] + c[1] + c[2]) / 3, 0) / samples.length;
+
+  let bestK;
+  if (avgBrightness < 80) {
+    // 深色背景图：选最暗的簇
+    const brightness0 = (centroids[0][0] + centroids[0][1] + centroids[0][2]) / 3;
+    const brightness1 = (centroids[1][0] + centroids[1][1] + centroids[1][2]) / 3;
+    bestK = brightness0 < brightness1 ? 0 : 1;
+    console.log('深色背景：选最暗簇', bestK, '亮度:', Math.min(brightness0, brightness1).toFixed(1));
+  } else {
+    // 浅色背景图：选最大簇
+    bestK = counts[0] > counts[1] ? 0 : 1;
+    console.log('浅色背景：选最大簇', bestK, '样本数:', Math.max(counts[0], counts[1]));
+  }
+
+  return centroids[bestK].map(Math.round);
+}
+
+function rgbDist(a, b) {
+  const dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2];
+  return Math.sqrt(dr * dr + dg * dg + db * db);
 }
 
 function getMostCommonColor(samples) {
   const colorMap = new Map();
-  
   for (const color of samples) {
-    // 量化颜色，忽略微小变化
-    const quantized = color.map(c => Math.round(c / 5) * 5);
+    const quantized = color.map(c => Math.round(c / 10) * 10);
     const key = quantized.join(',');
     colorMap.set(key, (colorMap.get(key) || 0) + 1);
   }
-  
   let maxCount = 0;
-  let mostCommon = samples[0];
-  
+  let mostCommon = samples[0] || [255, 255, 255];
   for (const [key, count] of colorMap) {
     if (count > maxCount) {
       maxCount = count;
       mostCommon = key.split(',').map(Number);
     }
   }
-  
   return mostCommon;
 }
 
@@ -786,50 +1535,44 @@ function createWhiteMask(data, width, height, tolerance) {
 }
 
 function createSolidColorMask(data, width, height, targetColor, tolerance) {
+  initLabLut();
   const mask = new Uint8Array(width * height);
   if (!targetColor || !Array.isArray(targetColor) || targetColor.length < 3) return mask;
-  
+
+  const labTarget = getLabFromLut(targetColor[0], targetColor[1], targetColor[2]);
+  const labTol = mapToleranceToLab(tolerance);
+
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    
-    const dr = r - targetColor[0];
-    const dg = g - targetColor[1];
-    const db = b - targetColor[2];
-    const distance = Math.sqrt(dr * dr + dg * dg + db * db);
-    
-    if (distance < tolerance) {
+    const lab = getLabFromLut(data[i], data[i + 1], data[i + 2]);
+    if (labDistance(lab, labTarget) < labTol) {
       mask[i / 4] = 1;
     }
   }
-  
+
   return mask;
 }
 
 function createCheckerboardMask(data, width, height, tolerance) {
+  initLabLut();
   const mask = new Uint8Array(width * height);
   const checkerColors = detectCheckerboardColors(data, width, height);
-  
+  const labTol = mapToleranceToLab(tolerance * 1.5);
+  const labCheckerColors = checkerColors.map(c => getLabFromLut(c[0], c[1], c[2]));
+
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    
+    const lab = getLabFromLut(data[i], data[i + 1], data[i + 2]);
     let isChecker = false;
-    for (const color of checkerColors) {
-      const dr = r - color[0];
-      const dg = g - color[1];
-      const db = b - color[2];
-      const distance = Math.sqrt(dr * dr + dg * dg + db * db);
-      
-      if (distance < tolerance * 1.5) {
+    for (const labCc of labCheckerColors) {
+      if (labDistance(lab, labCc) < labTol) {
         isChecker = true;
         break;
       }
     }
-    
     if (isChecker) {
       mask[i / 4] = 1;
     }
   }
-  
+
   return mask;
 }
 
@@ -926,8 +1669,29 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding, dedu
   const closedMask = closingMorphology(mask, width, height, 1);
   
   // 在闭运算掩码上找连通区域
-  const regions = findConnectedRegions(closedMask, width, height);
-  
+  let regions = findConnectedRegions(closedMask, width, height);
+
+  // 如果只识别出 1 个区域（粘连严重），切换到边缘检测模式
+  let useEdgeMode = false;
+  if (regions.length <= 1) {
+    console.log('连通域分析只找到', regions.length, '个区域，尝试边缘检测模式');
+    const edgeRegions = detectAssetsByEdges(imageData, bgMask, mergeDistance, minArea);
+    if (edgeRegions.length > 1) {
+      useEdgeMode = true;
+      // 用边缘检测的区域替换
+      const edgeFiltered = edgeRegions.filter(r => {
+        const rw = r.maxX - r.minX + 1;
+        const rh = r.maxY - r.minY + 1;
+        return rw * rh >= minArea;
+      });
+      edgeFiltered.sort((a, b) => {
+        if (Math.abs(a.minY - b.minY) < 20) return a.minX - b.minX;
+        return a.minY - b.minY;
+      });
+      regions = edgeFiltered;
+    }
+  }
+
   const filteredRegions = regions
     .filter(region => {
       const rw = region.maxX - region.minX + 1;
@@ -958,7 +1722,32 @@ function detectAssets({ imageData, bgMask, mergeDistance, minArea, padding, dedu
   if (deduplicate) {
     finalRegions = mergeOverlappingRegions(filteredRegions, originalMask, width, height);
   }
-  
+
+  // Watershed 分割：对过大的连通块尝试拆分
+  const splitRegions = [];
+  // 计算平均面积和整张图面积
+  const totalImgArea = width * height;
+  const avgArea = finalRegions.reduce((s, r) => s + (r.maxX - r.minX + 1) * (r.maxY - r.minY + 1), 0) / Math.max(finalRegions.length, 1);
+
+  for (const region of finalRegions) {
+    const rw = region.maxX - region.minX + 1;
+    const rh = region.maxY - region.minY + 1;
+    const area = rw * rh;
+    const aspectRatio = Math.max(rw, rh) / Math.max(Math.min(rw, rh), 1);
+    // 触发条件：区域占整图 > 30%，或面积 > 平均 3 倍，或长宽比 > 8
+    const isOversized = area > totalImgArea * 0.30 || area > avgArea * 3 || aspectRatio > 8;
+    if (isOversized && area > 5000) {
+      const subRegions = watershedSplit(closedMask, width, height, region);
+      if (subRegions && subRegions.length > 1) {
+        console.log(`Watershed 拆分: 区域 ${rw}x${rh} → ${subRegions.length} 个子区域`);
+        splitRegions.push(...subRegions);
+        continue;
+      }
+    }
+    splitRegions.push(region);
+  }
+  finalRegions = splitRegions;
+
   const assets = finalRegions.map((region, index) => {
     // 从闭运算区域出发，在原始掩码上精确提取像素
     const seeds = [];
@@ -1224,9 +2013,8 @@ function findConnectedRegions(mask, width, height) {
 }
 
 function isColorCloseTo(color, target, tolerance) {
-  const dr = color[0] - target[0];
-  const dg = color[1] - target[1];
-  const db = color[2] - target[2];
-  const distance = Math.sqrt(dr * dr + dg * dg + db * db);
-  return distance < tolerance;
+  initLabLut();
+  const lab1 = getLabFromLut(color[0], color[1], color[2]);
+  const lab2 = getLabFromLut(target[0], target[1], target[2]);
+  return labDistance(lab1, lab2) < mapToleranceToLab(tolerance);
 }
